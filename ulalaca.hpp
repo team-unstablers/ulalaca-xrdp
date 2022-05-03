@@ -4,69 +4,44 @@
 #include <memory>
 #include <functional>
 
+#include <thread>
 
+extern "C" {
 #include "arch.h"
 #include "parse.h"
 #include "os_calls.h"
 #include "defines.h"
 #include "guid.h"
 #include "xrdp_client_info.h"
-
-struct XrdpEvent {
-public:
-    enum Type {
-        KEY_DOWN = 15,
-        KEY_UP = 16,
-        KEY_SYNCHRONIZE_LOCK = 17,
-        
-        MOUSE_MOVE = 100,
-        MOUSE_BUTTON_LEFT_UP = 101,
-        MOUSE_BUTTON_LEFT_DOWN = 102,
-        MOUSE_BUTTON_RIGHT_UP = 103,
-        MOUSE_BUTTON_RIGHT_DOWN = 104,
-        MOUSE_BUTTON_MIDDLE_UP = 105,
-        MOUSE_BUTTON_MIDDLE_DOWN = 106,
-        
-        MOUSE_WHEEL_UP = 107,
-        MOUSE_UNKNOWN_1 = 108,
-        MOUSE_WHEEL_DOWN = 109,
-        MOUSE_UNKNOWN_2 = 110,
-        
-        INVALIDATE_REQUEST = 200,
-        
-        CHANNEL_EVENT = 0x5555
-    };
-    
-    bool isKeyEvent() const;
-    bool isMouseEvent() const;
-    
-    Type type;
-    
-    long param1;
-    long param2;
-    long param3;
-    long param4;
 };
 
+#include "XrdpEvent.hpp"
+#include "XrdpTransport.hpp"
+#include "XrdpStream.hpp"
 
-class XrdpStream {
-public:
-    using Stream = stream;
-    using StreamDeleter = std::function<void(Stream *)>;
+#include "UnixSocket.hpp"
+
+struct ScreenUpdateMessage {
+    uint8_t type;
     
-    XrdpStream(size_t size);
+    uint16_t x;
+    uint16_t y;
+    uint16_t width;
+    uint16_t height;
     
-    explicit operator Stream const *() const;
-    
-    template<typename T>
-    XrdpStream &operator<< (T value);
-    
-private:
-    std::unique_ptr<Stream, StreamDeleter> _stream;
-};
+    uint32_t contentLength;
+} __attribute__ ((packed));
+
+
+struct Rect {
+    short x;
+    short y;
+    short width;
+    short height;
+} __attribute__ ((packed));
 
 extern "C" {
-    
+
 struct XrdpUlalaca {
     int size; /* size of this struct */
     int version; /* internal version */
@@ -135,8 +110,67 @@ struct XrdpUlalaca {
                                   int total_data_len, int flags);
     int (*server_bell_trigger)(XrdpUlalaca *v);
     int (*server_chansrv_in_use)(XrdpUlalaca *v);
-    tintptr server_dumby[100 - 27]; /* align, 100 minus the number of server
-                                     functions above */
+    /* off screen bitmaps */
+    int (*server_create_os_surface)(XrdpUlalaca *v, int rdpindex,
+                                    int width, int height);
+    int (*server_switch_os_surface)(XrdpUlalaca *v, int rdpindex);
+    int (*server_delete_os_surface)(XrdpUlalaca *v, int rdpindex);
+    int (*server_paint_rect_os)(XrdpUlalaca *mod, int x, int y,
+                                int cx, int cy,
+                                int rdpindex, int srcx, int srcy);
+    int (*server_set_hints)(XrdpUlalaca *mod, int hints, int mask);
+    /* rail */
+    int (*server_window_new_update)(XrdpUlalaca *mod, int window_id,
+                                    struct rail_window_state_order *window_state,
+                                    int flags);
+    int (*server_window_delete)(XrdpUlalaca *mod, int window_id);
+    int (*server_window_icon)(XrdpUlalaca *mod,
+                              int window_id, int cache_entry, int cache_id,
+                              struct rail_icon_info *icon_info,
+                              int flags);
+    int (*server_window_cached_icon)(XrdpUlalaca *mod,
+                                     int window_id, int cache_entry,
+                                     int cache_id, int flags);
+    int (*server_notify_new_update)(XrdpUlalaca *mod,
+                                    int window_id, int notify_id,
+                                    struct rail_notify_state_order *notify_state,
+                                    int flags);
+    int (*server_notify_delete)(XrdpUlalaca *mod, int window_id,
+                                int notify_id);
+    int (*server_monitored_desktop)(XrdpUlalaca *mod,
+                                    struct rail_monitored_desktop_order *mdo,
+                                    int flags);
+    int (*server_set_pointer_ex)(XrdpUlalaca *mod, int x, int y, char *data,
+                                 char *mask, int bpp);
+    int (*server_add_char_alpha)(XrdpUlalaca *mod, int font, int character,
+                                 int offset, int baseline,
+                                 int width, int height, char *data);
+    int (*server_create_os_surface_bpp)(XrdpUlalaca *v, int rdpindex,
+                                        int width, int height, int bpp);
+    int (*server_paint_rect_bpp)(XrdpUlalaca *v, int x, int y, int cx, int cy,
+                                 char *data, int width, int height,
+                                 int srcx, int srcy, int bpp);
+    int (*server_composite)(XrdpUlalaca *v, int srcidx, int srcformat,
+                            int srcwidth, int srcrepeat, int *srctransform,
+                            int mskflags, int mskidx, int mskformat,
+                            int mskwidth, int mskrepeat, int op,
+                            int srcx, int srcy, int mskx, int msky,
+                            int dstx, int dsty, int width, int height,
+                            int dstformat);
+    int (*server_paint_rects)(XrdpUlalaca *v,
+                              int num_drects, short *drects,
+                              int num_crects, short *crects,
+                              char *data, int width, int height,
+                              int flags, int frame_id);
+    int (*server_session_info)(XrdpUlalaca *v, const char *data,
+                               int data_bytes);
+    tintptr server_dumby[100 - 46]; /* align, 100 minus the number of server
+                                       functions above */
+    /* common */
+    tintptr handle; /* pointer to self as int */
+    tintptr wm; /* struct xrdp_wm* */
+    tintptr painter;
+    struct source_info *si;
     
 public:
     constexpr static int ULALACA_VERSION = 1;
@@ -164,57 +198,24 @@ public:
                                               int width, int height);
     static int lib_mod_server_version_message(XrdpUlalaca *_this);
     
-    /* server functions */
-    static int lib_server_begin_update(XrdpUlalaca *_this);
-    static int lib_server_end_update(XrdpUlalaca *_this);
-    static int lib_server_fill_rect(XrdpUlalaca *_this, int x, int y, int cx, int cy);
-    static int lib_server_screen_blt(XrdpUlalaca *_this, int x, int y, int cx, int cy,
-                             int srcx, int srcy);
-    static int lib_server_paint_rect(XrdpUlalaca *_this, int x, int y, int cx, int cy,
-                             char *data, int width, int height, int srcx, int srcy);
-    static int lib_server_set_cursor(XrdpUlalaca *_this, int x, int y, char *data, char *mask);
-    static int lib_server_palette(XrdpUlalaca *_this, int *palette);
-    static int lib_server_msg(XrdpUlalaca *_this, const char *msg, int code);
-    static int lib_server_is_term(XrdpUlalaca *_this);
-    static int lib_server_set_clip(XrdpUlalaca *_this, int x, int y, int cx, int cy);
-    static int lib_server_reset_clip(XrdpUlalaca *_this);
-    static int lib_server_set_fgcolor(XrdpUlalaca *_this, int fgcolor);
-    static int lib_server_set_bgcolor(XrdpUlalaca *_this, int bgcolor);
-    static int lib_server_set_opcode(XrdpUlalaca *_this, int opcode);
-    static int lib_server_set_mixmode(XrdpUlalaca *_this, int mixmode);
-    static int lib_server_set_brush(XrdpUlalaca *_this, int x_origin, int y_origin,
-                            int style, char *pattern);
-    static int lib_server_set_pen(XrdpUlalaca *_this, int style,
-                          int width);
-    static int lib_server_draw_line(XrdpUlalaca *_this, int x1, int y1, int x2, int y2);
-    static int lib_server_add_char(XrdpUlalaca *_this, int font, int character,
-                           int offset, int baseline,
-                           int width, int height, char *data);
-    static int lib_server_draw_text(XrdpUlalaca *_this, int font,
-                            int flags, int mixmode, int clip_left, int clip_top,
-                            int clip_right, int clip_bottom,
-                            int box_left, int box_top,
-                            int box_right, int box_bottom,
-                            int x, int y, char *data, int data_len);
-    static int lib_server_reset(XrdpUlalaca *_this, int width, int height, int bpp);
-    static int lib_server_get_channel_count(XrdpUlalaca *_this);
-    static int lib_server_query_channel(XrdpUlalaca *_this, int index,
-                                char *channel_name,
-                                int *channel_flags);
-    static int lib_server_get_channel_id(XrdpUlalaca *_this, const char *name);
-    static int lib_server_send_to_channel(XrdpUlalaca *_this, int channel_id,
-                                  char *data, int data_len,
-                                  int total_data_len, int flags);
-    static int lib_server_bell_trigger(XrdpUlalaca *_this);
-    static int lib_server_chansrv_in_use(XrdpUlalaca *_this);
-    
     int handleEvent(XrdpEvent &event);
-    int updateDisplay();
+    
+    int updateScreen();
+    int updateScreenRect(int x1, int y1, int x2, int y2);
+    /**
+     * TODO: server_set_cursor();
+     */
+    int updateCursor();
+    
     
     void serverMessage(const char *message, int code);
     
     
 private:
+    int _error = 0;
+    int _bpp;
+    int _frameId = 0;
+    
     std::string _username;
     std::string _password;
     std::string _ip;
@@ -224,6 +225,12 @@ private:
     guid _guid;
     int _encodingsMask;
     xrdp_client_info _clientInfo;
+    
+    std::thread _screenUpdateThread;
+    std::unique_ptr<UnixSocket> _socket;
+    
+    [[noreturn]]
+    void _screenUpdateLoop();
 };
 
 };
