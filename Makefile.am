@@ -12,11 +12,20 @@ module_LTLIBRARIES = \
   libulalaca.la
 
 libulalaca_la_SOURCES = \
+  UnixSocket.cpp \
+  UnixSocket.hpp \
+  SocketStream.cpp \
+  SocketStream.hpp \
+  SystemCallException.cpp \
+  SystemCallException.hpp \
+  XrdpEvent.hpp \
+  XrdpTransport.hpp \
+  XrdpTransport.cpp \
+  XrdpStream.hpp \
+  XrdpStream.cpp \
   ulalaca.cpp \
-  ulalaca.hpp \
-  XrdpStream.cpp
+  ulalaca.hpp
 
 libulalaca_la_LIBADD = \
   $(top_builddir)/common/libcommon.la
 
-libulalaca_la_LDFLAGS = -avoid-version -module
