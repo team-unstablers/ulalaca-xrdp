@@ -1,5 +1,7 @@
 # 麗 -ulalaca-
 
+![sosumi](https://user-images.githubusercontent.com/964412/166627076-616c1252-aede-4f33-9084-9a483caa5a8c.png)
+
 this xrdp module requires [ulalaca-sessionprojector](https://github.com/unstabler/ulalaca)
 
 # TODO / BUGS
