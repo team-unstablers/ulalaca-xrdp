@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <functional>
+#include <mutex>
 
 #include <thread>
 
@@ -210,7 +211,8 @@ public:
     
     void serverMessage(const char *message, int code);
     
-    
+    inline std::unique_ptr<std::vector<Rect>> createRFXCopyRects(std::vector<Rect> &dirtyRects);
+
 private:
     int _error = 0;
     int _bpp;
@@ -229,10 +231,13 @@ private:
     std::thread _screenUpdateThread;
     std::unique_ptr<UnixSocket> _socket;
     
+    std::mutex _updateFinalizeLock;
+    
     [[noreturn]]
     void _screenUpdateLoop();
 };
 
 };
+
 
 #endif ULALACA_HPP

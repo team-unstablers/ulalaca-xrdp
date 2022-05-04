@@ -161,6 +161,30 @@ int XrdpUlalaca::lib_mod_connect(XrdpUlalaca *_this) {
     return 0;
 }
 
+std::unique_ptr<std::vector<Rect>> XrdpUlalaca::createRFXCopyRects(std::vector<Rect> &dirtyRects) {
+    constexpr const int BLOCK_SIZE = 64;
+    auto clipRects = std::make_unique<std::vector<Rect>>();
+    
+    for (auto &dirtyRect : dirtyRects) {
+        auto baseX = dirtyRect.x - (dirtyRect.x % BLOCK_SIZE);
+        auto baseY = dirtyRect.y - (dirtyRect.y % BLOCK_SIZE);
+        
+        auto blockCountX = ((dirtyRect.width + dirtyRect.x % BLOCK_SIZE) + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+        auto blockCountY = ((dirtyRect.height + dirtyRect.y % BLOCK_SIZE) + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+        
+        for (int j = 0; j < blockCountY; j++) {
+            for (int i = 0; i < blockCountX; i++) {
+                short x = baseX + (BLOCK_SIZE * i);
+                short y = baseY + (BLOCK_SIZE * j);
+                
+                clipRects->push_back(Rect { x, y, BLOCK_SIZE, BLOCK_SIZE });
+            }
+        }
+    }
+    
+    return std::move(clipRects);
+}
+
 /**
  * TODO: 코드 정리
  * TODO: 다른 IPC 방법 찾기 (mkfifo, XPC, shm ...)
@@ -174,8 +198,9 @@ void XrdpUlalaca::_screenUpdateLoop() {
     ScreenUpdateMessage message; // FIXME
     uint8_t *imageBuffer = (uint8_t *) malloc(IMAGE_BUFFER_SIZE);
     
-    std::vector<Rect> rects;
-    rects.reserve(64);
+    auto dirtyRects = std::make_unique<std::vector<Rect>>();
+    dirtyRects->reserve(64);
+    
 
     int pos = 0;
     
@@ -195,16 +220,15 @@ void XrdpUlalaca::_screenUpdateLoop() {
                 imageBuffer = new uint8_t[message.contentLength];
                 pos = 0;
                 isReceivingFrame = true;
-            } else if (message.type == 1) {
-                rects.push_back({ (short) message.x, (short) message.y, (short) message.width, (short) message.height });
-            } else if (message.type == 2) {
                 server_begin_update(this);
+            } else if (message.type == 1) {
+                dirtyRects->push_back(Rect {(short) message.x, (short) message.y, (short) message.width, (short) message.height });
+            } else if (message.type == 2) {
             } else if (message.type == 3) {
-                server_end_update(this);
             }
         } else {
             int bytes = std::min(8192, (int) message.contentLength - pos);
-            LOG(LOG_LEVEL_TRACE, "reading %d bytes (%d / %d)", bytes, pos, message.contentLength);
+            LOG(LOG_LEVEL_DEBUG, "reading %d bytes (%d / %d)", bytes, pos, message.contentLength);
             
             int read = _socket->read(buffer, bytes);
             
@@ -216,19 +240,52 @@ void XrdpUlalaca::_screenUpdateLoop() {
             pos += read;
             
             if (pos >= message.contentLength) {
-                LOG(LOG_LEVEL_TRACE, "painting: %d, (%d, %d) -> (%d, %d)", rects.size(), message.x, message.y, message.width, message.height);
-                if (rects.size() > 0) {
+                LOG(LOG_LEVEL_TRACE, "painting: %d, (%d, %d) -> (%d, %d)", dirtyRects->size(), message.x, message.y, message.width, message.height);
+    
+                _updateFinalizeLock.lock();
+    
+                // FIXME: ???????
+                auto screenRect = std::make_unique<std::vector<Rect>>(std::vector<Rect> {{ 0, 0, (short) message.width, (short) message.height }});
+    
+                if (dirtyRects->size() > 0 && _frameId > 0) {
+                    auto copyRects = createRFXCopyRects(*dirtyRects);
+    
+    
                     server_paint_rects(
                         this,
-                        rects.size() * 4, reinterpret_cast<short *>(rects.data()),
-                        rects.size() * 4, reinterpret_cast<short *>(rects.data()),
+                        dirtyRects->size(), reinterpret_cast<short *>(dirtyRects->data()),
+                        copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
                         (char *) imageBuffer,
                         message.width, message.height,
-                        0, _frameId
+                        0, _frameId++
                     );
                 } else {
                     // paint entire screen
-                    server_paint_rect(this, 0, 0, message.width, message.height, (char *) imageBuffer, message.width, message.height, 0, 0);
+    
+                    auto copyRects = createRFXCopyRects(*screenRect);
+    
+                    server_paint_rects(
+                        this,
+                        screenRect->size(), reinterpret_cast<short *>(screenRect->data()),
+                        copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
+                        // (char *) imageBuffer,
+                        (char *) imageBuffer,
+                        message.width, message.height,
+                        0, _frameId++
+                    );
+                    
+                    // HACK(rfx): cannot get ACK for first frame
+                    server_paint_rects(
+                        this,
+                        screenRect->size(), reinterpret_cast<short *>(screenRect->data()),
+                        copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
+                        // (char *) imageBuffer,
+                        (char *) imageBuffer,
+                        message.width, message.height,
+                        0, _frameId++
+                    );
+                    
+                    // server_paint_rect(this, 0, 0, message.width, message.height, (char *) imageBuffer, message.width, message.height, 0, 0);
                 }
     
                 /*
@@ -243,10 +300,14 @@ void XrdpUlalaca::_screenUpdateLoop() {
                     );
                 }
                  */
-                
-                rects.clear();
-                memset(imageBuffer, 0, message.contentLength);
     
+                _updateFinalizeLock.lock();
+                server_end_update(this);
+                _updateFinalizeLock.unlock();
+    
+                dirtyRects->clear();
+                memset(imageBuffer, 0, message.contentLength);
+                
                 isReceivingFrame = false;
             }
         }
@@ -278,6 +339,8 @@ int XrdpUlalaca::lib_mod_check_wait_objs(XrdpUlalaca *_this) {
 
 int XrdpUlalaca::lib_mod_frame_ack(XrdpUlalaca *_this, int flags, int frame_id) {
     _this->_frameId++;
+    _this->_updateFinalizeLock.unlock();
+    
     return 0;
 }
 
