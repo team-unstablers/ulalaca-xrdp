@@ -34,7 +34,7 @@ namespace projector {
         uint64_t timestamp;
         
         uint64_t length;
-    };
+    } FIXME_MARK_AS_PACKED_STRUCT;
     
     /**
      * incoming message
@@ -43,8 +43,6 @@ namespace projector {
         uint8_t type;
     
         Rect rect;
-    
-        uint32_t contentLength;
     } FIXME_MARK_AS_PACKED_STRUCT;
     
     struct ScreenCommitUpdate {
@@ -83,7 +81,7 @@ namespace projector {
         
         uint64_t timestamp;
         uint16_t flags;
-    } FIXME_MARK_AS_PACKAED_STRUCT;
+    } FIXME_MARK_AS_PACKED_STRUCT;
     
     struct MouseMoveEvent {
         static const uint16_t FLAG_IGNORE_TIMESTAMP_QUEUE = 0b0001;

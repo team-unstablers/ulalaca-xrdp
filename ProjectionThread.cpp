@@ -2,15 +2,28 @@
 // Created by Gyuhwan Park on 2022/05/06.
 //
 
+#if defined(HAVE_CONFIG_H)
+#include <config_ac.h>
+#endif
+
+extern "C" {
+#include "arch.h"
+#include "parse.h"
+#include "os_calls.h"
+#include "defines.h"
+#include "guid.h"
+#include "xrdp_client_info.h"
+};
+
 #include "ProjectionThread.hpp"
 
 ProjectionThread::ProjectionThread(
-    ProjectionContext &context,
+    XrdpUlalaca &xrdpUlalaca,
     UnixSocket &socket
 ):
-    _context(context),
+    _xrdpUlalaca(xrdpUlalaca),
     _socket(socket),
-    _isTerminated(false),
+    _isTerminated(false)
 {
 
 }
@@ -32,20 +45,22 @@ void ProjectionThread::mainLoop() {
             case projector::IN_SCREEN_UPDATE_EVENT: {
                 auto updateEvent = read<projector::ScreenUpdateEvent>(header->length);
     
-                _context.addDirtyRect(updateEvent->rect);
+                LOG(LOG_LEVEL_INFO, "mainLoop(): adding dirty rect");
+                _xrdpUlalaca.addDirtyRect(updateEvent->rect);
+                continue;
             }
-                break;
             case projector::IN_SCREEN_COMMIT_UPDATE: {
                 auto commitUpdate = read<projector::ScreenCommitUpdate>(header->length);
                 auto bitmap = read<uint8_t>(commitUpdate->bitmapLength);
     
-                _context.commitUpdate(
+                LOG(LOG_LEVEL_INFO, "mainLoop(): commiting update");
+                _xrdpUlalaca.commitUpdate(
                     bitmap.get(),
                     commitUpdate->screenRect.width,
                     commitUpdate->screenRect.height
                 );
+                continue;
             }
-                break;
             default: {
                 // ignore
                 read<uint8_t>(header->length);
@@ -66,6 +81,7 @@ void ProjectionThread::ioLoop() {
         }
         
         if (!_writeTasks.empty()) {
+            std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
             auto writeTask = std::move(_writeTasks.front());
             _writeTasks.pop();
             
@@ -74,8 +90,9 @@ void ProjectionThread::ioLoop() {
             }
         }
         
-        if (_readTasks.empty()) {
+        if (!_readTasks.empty()) {
             auto &readTask = _readTasks.front();
+            
             auto &contentLength = readTask.first;
             auto &promise = readTask.second;
             
@@ -88,11 +105,11 @@ void ProjectionThread::ioLoop() {
     
             int bytes = std::min(
                 (size_t) MAX_READ_SIZE,
-                contentLength -  readBytes
+                contentLength - readBytes
             );
             
-            int retval = _socket.read(_currentReadTask.get() + readBytes, bytes);
-            if (retval <= 0) {
+            size_t retval = _socket.read(_currentReadTask.get() + readBytes, bytes);
+            if (retval < 0) {
                 throw std::runtime_error("failed to perform read()");
             }
             
@@ -100,7 +117,11 @@ void ProjectionThread::ioLoop() {
             
             if (readBytes >= contentLength) {
                 promise.set_value(std::move(_currentReadTask));
-                _readTasks.pop();
+    
+                {
+                    std::scoped_lock<std::mutex> scopedReadTasksLock(_readTasksLock);
+                    _readTasks.pop();
+                }
                 
                 _currentReadTask = nullptr;
                 readBytes = 0;
@@ -109,17 +130,19 @@ void ProjectionThread::ioLoop() {
     }
 }
 
-std::unique_ptr<projector::MessageHeader> &&ProjectionThread::nextHeader() {
-    return read<projector::MessageHeader>(sizeof(projector::MessageHeader));
+std::unique_ptr<projector::MessageHeader, MallocFreeDeleter> ProjectionThread::nextHeader() {
+    return std::move(read<projector::MessageHeader>(sizeof(projector::MessageHeader)));
 }
 
 void ProjectionThread::writeMessage(const void *pointer, size_t size) {
     assert(pointer != nullptr);
     assert(size > 0);
     
-    std::unique_ptr<uint8_t, std::function<void(uint8_t *)>> data(
+    std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
+    
+    std::unique_ptr<uint8_t, MallocFreeDeleter> data(
         (uint8_t *) malloc(size),
-        [](auto *ptr) { free((void *) ptr); }
+        free
     );
 
     std::memcpy(data.get(), pointer, size);

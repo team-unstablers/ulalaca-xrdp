@@ -15,6 +15,8 @@
 #include "ulalaca.hpp"
 #include "SocketStream.hpp"
 
+#include "ProjectionThread.hpp"
+
 bool XrdpEvent::isKeyEvent() const {
     return type == KEY_DOWN || type == KEY_UP;
 }
@@ -86,9 +88,6 @@ int XrdpUlalaca::handleEvent(XrdpEvent &event) {
     return NO_ERROR;
 }
 
-int XrdpUlalaca::updateScreen() {
-}
-
 int XrdpUlalaca::lib_mod_event(XrdpUlalaca *_this, int type, long arg1, long arg2, long arg3, long arg4) {
     LOG(LOG_LEVEL_DEBUG, "lib_mod_event() called");
     
@@ -155,7 +154,10 @@ int XrdpUlalaca::lib_mod_connect(XrdpUlalaca *_this) {
         return 1;
     }
     
-    _this->_screenUpdateThread = std::thread(&XrdpUlalaca::_screenUpdateLoop, _this);
+    _this->_projectionThread = std::make_unique<ProjectionThread>(
+        *_this, *(_this->_socket)
+    );
+    _this->_projectionThread->start();
     _this->serverMessage("welcome to the fantasy zone, get ready!", 0);
     
     return 0;
@@ -185,137 +187,6 @@ std::unique_ptr<std::vector<Rect>> XrdpUlalaca::createRFXCopyRects(std::vector<R
     return std::move(clipRects);
 }
 
-/**
- * TODO: 코드 정리
- * TODO: 다른 IPC 방법 찾기 (mkfifo, XPC, shm ...)
- * macOS에서 Unix Socket은 뭔 짓을 해도 8192 byte로 fragment 되기 때문에 퍼포먼스에 지장이 있진 않을까?
- */
-void XrdpUlalaca::_screenUpdateLoop() {
-    constexpr const int BUFFER_SIZE = 8192;
-    constexpr const int IMAGE_BUFFER_SIZE = 1024 * 1024 * 4; // 더 크면 어떻게 할려구?
-    
-    uint8_t *buffer = new uint8_t[BUFFER_SIZE];
-    ScreenUpdateMessage message; // FIXME
-    uint8_t *imageBuffer = (uint8_t *) malloc(IMAGE_BUFFER_SIZE);
-    
-    auto dirtyRects = std::make_unique<std::vector<Rect>>();
-    dirtyRects->reserve(64);
-    
-
-    int pos = 0;
-    
-    bool isReceivingFrame = false;
-    
-    while (_error == 0) {
-        if (!isReceivingFrame) {
-            int read = _socket->read(buffer, sizeof(ScreenUpdateMessage));
-    
-            if (read == 0) {
-                break;
-            }
-            
-            std::memcpy(&message, buffer, sizeof(ScreenUpdateMessage));
-    
-            if (message.type == 0) {
-                imageBuffer = new uint8_t[message.contentLength];
-                pos = 0;
-                isReceivingFrame = true;
-                server_begin_update(this);
-            } else if (message.type == 1) {
-                dirtyRects->push_back(Rect {(short) message.x, (short) message.y, (short) message.width, (short) message.height });
-            } else if (message.type == 2) {
-            } else if (message.type == 3) {
-            }
-        } else {
-            int bytes = std::min(8192, (int) message.contentLength - pos);
-            LOG(LOG_LEVEL_DEBUG, "reading %d bytes (%d / %d)", bytes, pos, message.contentLength);
-            
-            int read = _socket->read(buffer, bytes);
-            
-            if (read == 0) {
-                break;
-            }
-            
-            std::memcpy(&imageBuffer[pos], buffer, read);
-            pos += read;
-            
-            if (pos >= message.contentLength) {
-                LOG(LOG_LEVEL_TRACE, "painting: %d, (%d, %d) -> (%d, %d)", dirtyRects->size(), message.x, message.y, message.width, message.height);
-    
-                _updateFinalizeLock.lock();
-    
-                // FIXME: ???????
-                auto screenRect = std::make_unique<std::vector<Rect>>(std::vector<Rect> {{ 0, 0, (short) message.width, (short) message.height }});
-    
-                if (dirtyRects->size() > 0 && _frameId > 0) {
-                    auto copyRects = createRFXCopyRects(*dirtyRects);
-    
-    
-                    server_paint_rects(
-                        this,
-                        dirtyRects->size(), reinterpret_cast<short *>(dirtyRects->data()),
-                        copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
-                        (char *) imageBuffer,
-                        message.width, message.height,
-                        0, _frameId++
-                    );
-                } else {
-                    // paint entire screen
-    
-                    auto copyRects = createRFXCopyRects(*screenRect);
-    
-                    server_paint_rects(
-                        this,
-                        screenRect->size(), reinterpret_cast<short *>(screenRect->data()),
-                        copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
-                        // (char *) imageBuffer,
-                        (char *) imageBuffer,
-                        message.width, message.height,
-                        0, _frameId++
-                    );
-                    
-                    // HACK(rfx): cannot get ACK for first frame
-                    server_paint_rects(
-                        this,
-                        screenRect->size(), reinterpret_cast<short *>(screenRect->data()),
-                        copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
-                        // (char *) imageBuffer,
-                        (char *) imageBuffer,
-                        message.width, message.height,
-                        0, _frameId++
-                    );
-                    
-                    // server_paint_rect(this, 0, 0, message.width, message.height, (char *) imageBuffer, message.width, message.height, 0, 0);
-                }
-    
-                /*
-                for (auto &rect : rects2) {
-                    server_paint_rect(
-                        this,
-                        rect.x, rect.y,
-                        rect.width, rect.height,
-                        (char *) imageBuffer,
-                        rect.width, rect.height,
-                        rect.x, rect.y
-                    );
-                }
-                 */
-    
-                _updateFinalizeLock.lock();
-                server_end_update(this);
-                _updateFinalizeLock.unlock();
-    
-                dirtyRects->clear();
-                memset(imageBuffer, 0, message.contentLength);
-                
-                isReceivingFrame = false;
-            }
-        }
-    }
-    free(imageBuffer);
-    delete[] buffer;
-}
-
 int XrdpUlalaca::lib_mod_signal(XrdpUlalaca *_this) {
     return 0;
 }
@@ -338,9 +209,6 @@ int XrdpUlalaca::lib_mod_check_wait_objs(XrdpUlalaca *_this) {
 }
 
 int XrdpUlalaca::lib_mod_frame_ack(XrdpUlalaca *_this, int flags, int frame_id) {
-    _this->_frameId++;
-    _this->_updateFinalizeLock.unlock();
-    
     return 0;
 }
 
@@ -358,6 +226,49 @@ int XrdpUlalaca::lib_mod_server_monitor_full_invalidate(XrdpUlalaca *_this, int 
 
 int XrdpUlalaca::lib_mod_server_version_message(XrdpUlalaca *_this) {
     return 0;
+}
+
+void XrdpUlalaca::addDirtyRect(Rect &rect) {
+    _dirtyRects.push_back(rect);
+}
+
+void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t height) {
+    LOG(LOG_LEVEL_TRACE, "painting: %d, (%d, %d) -> (%d, %d)", width, height);
+    
+    std::scoped_lock<std::mutex> scopedCommitLock(_commitUpdateLock);
+    
+    Rect screenRect = {0, 0, (short) width, (short) height};
+    
+    if (_dirtyRects.size() > 0 && _frameId > 0) {
+        auto copyRects = createRFXCopyRects(_dirtyRects);
+        
+        server_paint_rects(
+            this,
+            _dirtyRects.size(), reinterpret_cast<short *>(_dirtyRects.data()),
+            copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
+            (char *) image,
+            width, height,
+            0, (_frameId % INT32_MAX)
+        );
+    } else {
+        // paint entire screen
+        auto dirtyRects = std::vector<Rect>{screenRect};
+        auto copyRects = createRFXCopyRects(dirtyRects);
+        
+        server_paint_rects(
+            this,
+            dirtyRects.size(), reinterpret_cast<short *>(dirtyRects.data()),
+            copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
+            (char *) image,
+            width, height,
+            0, (_frameId % INT32_MAX)
+        );
+    }
+    
+    _frameId++;
+    
+    _dirtyRects.clear();
+    server_end_update(this);
 }
 
 void XrdpUlalaca::serverMessage(const char *message, int code) {

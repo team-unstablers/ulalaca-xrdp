@@ -12,13 +12,15 @@
 
 #include "UnixSocket.hpp"
 
-#include "ProjectionContext.hpp"
 #include "UlalacaMessages.hpp"
+#include "ulalaca.hpp"
+
+using MallocFreeDeleter = std::function<void(void *)>;
 
 class ProjectionThread {
 public:
     explicit ProjectionThread(
-        ProjectionContext &context,
+        XrdpUlalaca &xrdpUlalaca,
         UnixSocket &socket
     );
     
@@ -33,32 +35,40 @@ private:
     void ioLoop();
     
     
-    std::unique_ptr<projector::MessageHeader> &&nextHeader();
+    std::unique_ptr<projector::MessageHeader, MallocFreeDeleter> nextHeader();
     
     template<typename T>
-    std::unique_ptr<T> &&read(size_t size) {
-        if (size == 0) {
-            return nullptr;
-        }
+    std::unique_ptr<T, MallocFreeDeleter> read(size_t size) {
+        assert(size != 0);
         
+       
         auto promise = std::promise<std::unique_ptr<uint8_t>>();
-        _readTasks.emplace(size, promise);
-        
+        {
+            std::scoped_lock<std::mutex> scopedReadTasksLock(_readTasksLock);
+            _readTasks.emplace(size, promise);
+        }
         auto pointer = promise.get_future().get();
-        
-        return std::unique_ptr<T> { static_cast<T>(pointer.release()) };
+    
+        return std::move(std::unique_ptr<T, MallocFreeDeleter>(
+            reinterpret_cast<T *>(pointer.release()),
+            free
+        ));
     }
     
     void writeMessage(const void *pointer, size_t size);
 
-    ProjectionContext &_context;
+    XrdpUlalaca &_xrdpUlalaca;
     UnixSocket &_socket;
     
     bool _isTerminated;
     std::thread _projectorThread;
     std::thread _ioThread;
     
-    std::queue<std::pair<size_t, std::unique_ptr<uint8_t>>> _writeTasks;
+    
+    std::mutex _writeTasksLock;
+    std::mutex _readTasksLock;
+    
+    std::queue<std::pair<size_t, std::unique_ptr<uint8_t, MallocFreeDeleter>>> _writeTasks;
     std::queue<std::pair<size_t, std::promise<std::unique_ptr<uint8_t>> &>> _readTasks;
 };
 

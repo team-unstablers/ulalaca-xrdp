@@ -22,24 +22,10 @@ extern "C" {
 
 #include "UnixSocket.hpp"
 
-struct ScreenUpdateMessage {
-    uint8_t type;
-    
-    uint16_t x;
-    uint16_t y;
-    uint16_t width;
-    uint16_t height;
-    
-    uint32_t contentLength;
-} __attribute__ ((packed));
+#include "UlalacaMessages.hpp"
 
 
-struct Rect {
-    short x;
-    short y;
-    short width;
-    short height;
-} __attribute__ ((packed));
+class ProjectionThread;
 
 extern "C" {
 
@@ -200,23 +186,20 @@ public:
     static int lib_mod_server_version_message(XrdpUlalaca *_this);
     
     int handleEvent(XrdpEvent &event);
-    
-    int updateScreen();
-    int updateScreenRect(int x1, int y1, int x2, int y2);
-    /**
-     * TODO: server_set_cursor();
-     */
-    int updateCursor();
-    
+
     
     void serverMessage(const char *message, int code);
     
     inline std::unique_ptr<std::vector<Rect>> createRFXCopyRects(std::vector<Rect> &dirtyRects);
+    
+    void addDirtyRect(Rect &rect);
+    void commitUpdate(const uint8_t *image, int32_t width, int32_t height);
 
 private:
     int _error = 0;
     int _bpp;
-    int _frameId = 0;
+    
+    std::atomic_int64_t _frameId = 0;
     
     std::string _username;
     std::string _password;
@@ -228,13 +211,11 @@ private:
     int _encodingsMask;
     xrdp_client_info _clientInfo;
     
-    std::thread _screenUpdateThread;
     std::unique_ptr<UnixSocket> _socket;
+    std::unique_ptr<ProjectionThread> _projectionThread;
     
-    std::mutex _updateFinalizeLock;
-    
-    [[noreturn]]
-    void _screenUpdateLoop();
+    std::mutex _commitUpdateLock;
+    std::vector<Rect> _dirtyRects;
 };
 
 };
