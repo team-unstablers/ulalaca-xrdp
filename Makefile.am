@@ -23,6 +23,9 @@ libulalaca_la_SOURCES = \
   XrdpTransport.cpp \
   XrdpStream.hpp \
   XrdpStream.cpp \
+  UlalacaMessages.hpp \
+  ProjectionThread.hpp \
+  ProjectionThread.cpp \
   ulalaca.cpp \
   ulalaca.hpp
 
