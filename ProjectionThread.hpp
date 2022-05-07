@@ -27,6 +27,7 @@ public:
     void start();
     void stop();
     
+    void handleEvent(XrdpEvent &event);
 private:
     [[noreturn]]
     void mainLoop();
@@ -40,7 +41,6 @@ private:
     template<typename T>
     std::unique_ptr<T, MallocFreeDeleter> read(size_t size) {
         assert(size != 0);
-        
        
         auto promise = std::promise<std::unique_ptr<uint8_t>>();
         {
@@ -55,8 +55,22 @@ private:
         ));
     }
     
-    void writeMessage(const void *pointer, size_t size);
-
+    void write(const void *pointer, size_t size);
+    
+    template <typename T>
+    void writeMessage(projector::MessageType messageType, T message) {
+        auto header = projector::MessageHeader {
+            (uint16_t) messageType,
+            0, 0,
+            0,
+            sizeof(T)
+        };
+        
+        write(&header, sizeof(header));
+        write(&message, sizeof(T));
+    }
+    
+    
     XrdpUlalaca &_xrdpUlalaca;
     UnixSocket &_socket;
     

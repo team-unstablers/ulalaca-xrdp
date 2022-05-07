@@ -16,6 +16,7 @@ extern "C" {
 };
 
 #include "ProjectionThread.hpp"
+#include "KeycodeMap.hpp"
 
 ProjectionThread::ProjectionThread(
     XrdpUlalaca &xrdpUlalaca,
@@ -35,6 +36,106 @@ void ProjectionThread::start() {
 
 void ProjectionThread::stop() {
     _isTerminated = true;
+}
+
+void ProjectionThread::handleEvent(XrdpEvent &event) {
+    using namespace projector;
+    
+    if (event.isKeyEvent()) {
+        LOG(LOG_LEVEL_DEBUG, "TODO: keyDown (%d, %d)", (int) event.param3, (int) event.param4);
+        auto keycode = event.param3;
+        auto eventType = event.type == XrdpEvent::KEY_DOWN ?
+            KeyboardEvent::TYPE_KEYDOWN :
+            KeyboardEvent::TYPE_KEYUP;
+        
+        writeMessage(MessageType::OUT_KEYBOARD_EVENT, KeyboardEvent {
+            eventType, (uint32_t) rdpKeycodeToCGKeycode(keycode), 0
+        });
+    } else if (event.type == XrdpEvent::KEY_SYNCHRONIZE_LOCK) {
+        auto lockStatus = event.param1;
+    }
+    
+    if (event.isMouseEvent()) {
+        switch (event.type) {
+            case XrdpEvent::MOUSE_MOVE: {
+                uint16_t posX = event.param1;
+                uint16_t posY = event.param2;
+                
+                writeMessage(MessageType::OUT_MOUSE_MOVE_EVENT, MouseMoveEvent {
+                    posX, posY,
+                    0
+                });
+                return;
+            }
+            
+            case XrdpEvent::MOUSE_BUTTON_LEFT_DOWN: {
+                writeMessage(MessageType::OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
+                    MouseButtonEvent::TYPE_MOUSEDOWN,
+                    MouseButtonEvent::BUTTON_LEFT,
+                    0
+                });
+                return;
+            }
+            case XrdpEvent::MOUSE_BUTTON_LEFT_UP: {
+                writeMessage(MessageType::OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
+                    MouseButtonEvent::TYPE_MOUSEUP,
+                    MouseButtonEvent::BUTTON_LEFT,
+                    0
+                });
+                return;
+            }
+    
+    
+            case XrdpEvent::MOUSE_BUTTON_RIGHT_DOWN: {
+                writeMessage(MessageType::OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
+                    MouseButtonEvent::TYPE_MOUSEDOWN,
+                    MouseButtonEvent::BUTTON_RIGHT,
+                    0
+                });
+                return;
+            }
+            case XrdpEvent::MOUSE_BUTTON_RIGHT_UP: {
+                writeMessage(MessageType::OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
+                    MouseButtonEvent::TYPE_MOUSEUP,
+                    MouseButtonEvent::BUTTON_RIGHT,
+                    0
+                });
+                return;
+            }
+            
+            case XrdpEvent::MOUSE_WHEEL_DOWN: {
+                LOG(LOG_LEVEL_DEBUG, "TODO: WHEEL_DOWN (%d)", (int) event.param1);
+                /*
+                writeMessage(MessageType::OUT_MOUSE_WHEEL_EVENT, MouseWheelEvent {
+                    MouseButtonEvent::,
+                    MouseButtonEvent::BUTTON_RIGHT,
+                    0
+                });
+                 */
+                return;
+            }
+            
+        }
+    
+    }
+    
+    
+    if (event.type == XrdpEvent::INVALIDATE_REQUEST) {
+        uint16_t x1 = HIWORD(event.param1);
+        uint16_t y1 = LOWORD(event.param1);
+        uint16_t x2 = HIWORD(event.param2);
+        uint16_t y2 = LOWORD(event.param2);
+        
+        // TODO: redraw(rect)?
+    }
+    
+    if (event.type == XrdpEvent::CHANNEL_EVENT) {
+        uint16_t channelId = LOWORD(event.param1);
+        uint16_t flags = HIWORD(event.param1);
+        auto size = (int) event.param2;
+        auto data = (char *) event.param3;
+        auto total_size = (int) event.param4;
+    }
 }
 
 void ProjectionThread::mainLoop() {
@@ -135,7 +236,7 @@ std::unique_ptr<projector::MessageHeader, MallocFreeDeleter> ProjectionThread::n
     return std::move(read<projector::MessageHeader>(sizeof(projector::MessageHeader)));
 }
 
-void ProjectionThread::writeMessage(const void *pointer, size_t size) {
+void ProjectionThread::write(const void *pointer, size_t size) {
     assert(pointer != nullptr);
     assert(size > 0);
     

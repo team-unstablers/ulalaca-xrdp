@@ -26,6 +26,7 @@ libulalaca_la_SOURCES = \
   UlalacaMessages.hpp \
   ProjectionThread.hpp \
   ProjectionThread.cpp \
+  KeycodeMap.cpp \
   ulalaca.cpp \
   ulalaca.hpp
 

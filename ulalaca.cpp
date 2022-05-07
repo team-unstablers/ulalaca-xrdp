@@ -47,47 +47,6 @@ XrdpUlalaca::XrdpUlalaca():
 {
 }
 
-int XrdpUlalaca::handleEvent(XrdpEvent &event) {
-    if (event.isKeyEvent()) {
-        auto keyCode = event.param2;
-        return NO_ERROR;
-    } else if (event.type == XrdpEvent::KEY_SYNCHRONIZE_LOCK) {
-        auto lockStatus = event.param1;
-        return NO_ERROR;
-    }
-    
-    if (event.isMouseEvent()) {
-        uint16_t posX = event.param1;
-        uint16_t posY = event.param2;
-        
-        
-        return NO_ERROR;
-    }
-    
-    
-    if (event.type == XrdpEvent::INVALIDATE_REQUEST) {
-        uint16_t x1 = HIWORD(event.param1);
-        uint16_t y1 = LOWORD(event.param1);
-        uint16_t x2 = HIWORD(event.param2);
-        uint16_t y2 = LOWORD(event.param2);
-    
-        // TODO: redraw(rect)?
-        return NO_ERROR;
-    }
-    
-    if (event.type == XrdpEvent::CHANNEL_EVENT) {
-        uint16_t channelId = LOWORD(event.param1);
-        uint16_t flags = HIWORD(event.param1);
-        auto size = (int) event.param2;
-        auto data = (char *) event.param3;
-        auto total_size = (int) event.param4;
-        
-        return NO_ERROR;
-    }
-    
-    return NO_ERROR;
-}
-
 int XrdpUlalaca::lib_mod_event(XrdpUlalaca *_this, int type, long arg1, long arg2, long arg3, long arg4) {
     LOG(LOG_LEVEL_DEBUG, "lib_mod_event() called");
     
@@ -96,7 +55,11 @@ int XrdpUlalaca::lib_mod_event(XrdpUlalaca *_this, int type, long arg1, long arg
         arg1, arg2, arg3, arg4
     };
     
-    return _this->handleEvent(event);
+    if (_this->_projectionThread != nullptr) {
+        _this->_projectionThread->handleEvent(event);
+    }
+    
+    return 0;
 }
 
 int XrdpUlalaca::lib_mod_start(XrdpUlalaca *_this, int width, int height, int bpp) {

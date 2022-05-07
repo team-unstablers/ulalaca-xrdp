@@ -23,6 +23,12 @@ namespace projector {
         IN_SCREEN_COMMIT_UPDATE = 0x0102,
         
         OUT_SCREEN_UPDATE_REQUEST = 0x0201,
+        
+        OUT_KEYBOARD_EVENT = 0x0311,
+        
+        OUT_MOUSE_MOVE_EVENT = 0x0321,
+        OUT_MOUSE_BUTTON_EVENT = 0x0322,
+        OUT_MOUSE_WHEEL_EVENT = 0x0323
     };
     
     struct MessageHeader {
@@ -58,8 +64,6 @@ namespace projector {
         uint8_t type;
         
         Rect rect;
-        
-        uint64_t timestamp;
     };
     
     struct KeyboardEvent {
@@ -79,7 +83,6 @@ namespace projector {
         uint8_t type;
         uint32_t keyCode;
         
-        uint64_t timestamp;
         uint16_t flags;
     } FIXME_MARK_AS_PACKED_STRUCT;
     
@@ -90,7 +93,6 @@ namespace projector {
         uint16_t x;
         uint16_t y;
         
-        uint64_t timestamp;
         uint16_t flags;
     } FIXME_MARK_AS_PACKED_STRUCT;
     
@@ -110,8 +112,7 @@ namespace projector {
         
         uint8_t type;
         uint8_t button;
-    
-        uint64_t timestamp;
+        
         uint16_t flags;
     } FIXME_MARK_AS_PACKED_STRUCT;
     
@@ -122,7 +123,6 @@ namespace projector {
         int32_t deltaX;
         int32_t deltaY;
         
-        uint64_t timestamp;
         uint16_t flags;
     } FIXME_MARK_AS_PACKED_STRUCT;
     
