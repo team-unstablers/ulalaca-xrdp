@@ -6,8 +6,8 @@
 
 #include <Carbon/Carbon.h>
 
-static const uint8_t RDP_CGKEYCODE_MAP[] = {
-    255,
+static const int16_t RDP_CGKEYCODE_MAP[] = {
+    -1,
     kVK_Escape,
     kVK_ANSI_1,
     kVK_ANSI_2,
@@ -54,7 +54,7 @@ static const uint8_t RDP_CGKEYCODE_MAP[] = {
     kVK_ANSI_Semicolon,
     kVK_ANSI_Quote, // 40
     
-    kVK_ANSI_Grave, // backquote
+    kVK_ANSI_Grave,
     kVK_Shift, // 42
     kVK_ANSI_Backslash,
     kVK_ANSI_Z, // 44
@@ -69,10 +69,10 @@ static const uint8_t RDP_CGKEYCODE_MAP[] = {
     kVK_ANSI_Slash,
     kVK_RightShift, // 54
     
-    255,
+    -1,
     kVK_Option, // 56
     kVK_Space, // 57
-    255,
+    -1,
     kVK_F1,
     kVK_F2, // 60
     
@@ -90,32 +90,32 @@ static const uint8_t RDP_CGKEYCODE_MAP[] = {
     kVK_Home, // 71
     kVK_UpArrow,
     kVK_PageUp,
-    255,
+    -1,
     kVK_LeftArrow,
-    255,
+    -1,
     kVK_RightArrow,
-    255,
+    -1,
     kVK_End,
     kVK_DownArrow, // 80
     
     kVK_PageDown,
-    255, // FIXME: INSERT KEY
+    -1, // FIXME: INSERT KEY
     kVK_ForwardDelete,
-    255,
-    255,
-    255,
-    255,
-    255,
-    255,
-    255, // 90
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1, // 90
     
     kVK_Command
 };
 
-uint16_t rdpKeycodeToCGKeycode(uint16_t keycode) {
+int16_t rdpKeycodeToCGKeycode(uint16_t keycode) {
     if (keycode <= 91) {
         return RDP_CGKEYCODE_MAP[keycode];
     }
     
-    return keycode;
+    return -1;
 }

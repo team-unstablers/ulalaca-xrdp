@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-uint16_t rdpKeycodeToCGKeycode(uint16_t keycode);
+int16_t rdpKeycodeToCGKeycode(uint16_t keycode);
 
 
 #endif //XRDP_KEYCODEMAP_HPP

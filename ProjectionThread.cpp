@@ -42,14 +42,18 @@ void ProjectionThread::handleEvent(XrdpEvent &event) {
     using namespace projector;
     
     if (event.isKeyEvent()) {
-        LOG(LOG_LEVEL_DEBUG, "TODO: keyDown (%d, %d)", (int) event.param3, (int) event.param4);
         auto keycode = event.param3;
+        auto cgKeycode = rdpKeycodeToCGKeycode(keycode);
         auto eventType = event.type == XrdpEvent::KEY_DOWN ?
             KeyboardEvent::TYPE_KEYDOWN :
             KeyboardEvent::TYPE_KEYUP;
         
+        if (cgKeycode == -1) {
+            return;
+        }
+        
         writeMessage(MessageType::OUT_KEYBOARD_EVENT, KeyboardEvent {
-            eventType, (uint32_t) rdpKeycodeToCGKeycode(keycode), 0
+            eventType, (uint32_t) cgKeycode, 0
         });
     } else if (event.type == XrdpEvent::KEY_SYNCHRONIZE_LOCK) {
         auto lockStatus = event.param1;
@@ -146,7 +150,7 @@ void ProjectionThread::mainLoop() {
             case projector::IN_SCREEN_UPDATE_EVENT: {
                 auto updateEvent = read<projector::ScreenUpdateEvent>(header->length);
     
-                LOG(LOG_LEVEL_INFO, "mainLoop(): adding dirty rect");
+                LOG(LOG_LEVEL_DEBUG, "mainLoop(): adding dirty rect");
                 _xrdpUlalaca.addDirtyRect(updateEvent->rect);
                 continue;
             }
@@ -154,7 +158,7 @@ void ProjectionThread::mainLoop() {
                 auto commitUpdate = read<projector::ScreenCommitUpdate>(header->length);
                 auto bitmap = read<uint8_t>(commitUpdate->bitmapLength);
     
-                LOG(LOG_LEVEL_INFO, "mainLoop(): commiting update");
+                LOG(LOG_LEVEL_DEBUG, "mainLoop(): commiting update");
                 _xrdpUlalaca.commitUpdate(
                     bitmap.get(),
                     commitUpdate->screenRect.width,
@@ -179,7 +183,7 @@ void ProjectionThread::ioLoop() {
     while (!_isTerminated) {
         if (_writeTasks.empty() && _readTasks.empty()) {
             using namespace std::chrono_literals;
-            std::this_thread::sleep_for(4ms);
+            std::this_thread::sleep_for(1ms);
         }
         
         if (!_writeTasks.empty()) {
