@@ -7,7 +7,6 @@ this xrdp module requires [ulalaca-sessionprojector](https://github.com/unstable
 # TODO / BUGS
 
 - NOT SUITABLE FOR PRODUCTION USE YET
-- handle input events: currently keyboard / mouse input not working
 - calculate dirtyRects boundary: mstsc.exe raises error when minimize window
 
 # INSTALLATION
