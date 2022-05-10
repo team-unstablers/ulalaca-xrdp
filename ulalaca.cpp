@@ -48,7 +48,7 @@ XrdpUlalaca::XrdpUlalaca():
 }
 
 int XrdpUlalaca::lib_mod_event(XrdpUlalaca *_this, int type, long arg1, long arg2, long arg3, long arg4) {
-    LOG(LOG_LEVEL_DEBUG, "lib_mod_event() called");
+    LOG(LOG_LEVEL_DEBUG, "lib_mod_event() called: %d", type);
     
     XrdpEvent event {
         (XrdpEvent::Type) type,
@@ -131,11 +131,19 @@ std::unique_ptr<std::vector<Rect>> XrdpUlalaca::createRFXCopyRects(std::vector<R
     auto clipRects = std::make_unique<std::vector<Rect>>();
     
     for (auto &dirtyRect : dirtyRects) {
+        if (_clientInfo.width <= dirtyRect.x ||
+            _clientInfo.height <= dirtyRect.y) {
+            continue;
+        }
+        
+        auto width = std::min(dirtyRect.width, (short) (_clientInfo.width - dirtyRect.x));
+        auto height = std::min(dirtyRect.height, (short) (_clientInfo.height - dirtyRect.y));
+        
         auto baseX = dirtyRect.x - (dirtyRect.x % BLOCK_SIZE);
         auto baseY = dirtyRect.y - (dirtyRect.y % BLOCK_SIZE);
         
-        auto blockCountX = ((dirtyRect.width + dirtyRect.x % BLOCK_SIZE) + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
-        auto blockCountY = ((dirtyRect.height + dirtyRect.y % BLOCK_SIZE) + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+        auto blockCountX = ((width + dirtyRect.x % BLOCK_SIZE) + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
+        auto blockCountY = ((height + dirtyRect.y % BLOCK_SIZE) + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
         
         for (int j = 0; j < blockCountY; j++) {
             for (int i = 0; i < blockCountX; i++) {
@@ -151,10 +159,12 @@ std::unique_ptr<std::vector<Rect>> XrdpUlalaca::createRFXCopyRects(std::vector<R
 }
 
 int XrdpUlalaca::lib_mod_signal(XrdpUlalaca *_this) {
+    LOG(LOG_LEVEL_INFO, "lib_mod_signal() called");
     return 0;
 }
 
 int XrdpUlalaca::lib_mod_end(XrdpUlalaca *_this) {
+    LOG(LOG_LEVEL_INFO, "lib_mod_end() called");
     return 0;
 }
 
@@ -164,18 +174,25 @@ int XrdpUlalaca::lib_mod_session_change(XrdpUlalaca *_this, int, int) {
 
 int XrdpUlalaca::lib_mod_get_wait_objs(XrdpUlalaca *_this, tbus *read_objs, int *rcount, tbus *write_objs, int *wcount,
                                        int *timeout) {
+    
+    LOG(LOG_LEVEL_INFO, "lib_mod_get_wait_objs() called");
     return 0;
 }
 
 int XrdpUlalaca::lib_mod_check_wait_objs(XrdpUlalaca *_this) {
+    LOG(LOG_LEVEL_INFO, "lib_mod_check_wait_objs() called");
     return 0;
 }
 
 int XrdpUlalaca::lib_mod_frame_ack(XrdpUlalaca *_this, int flags, int frame_id) {
+    LOG(LOG_LEVEL_INFO, "lib_mod_frame_ack() called: %d", frame_id);
+    _this->_ackFrameId = frame_id;
+    
     return 0;
 }
 
 int XrdpUlalaca::lib_mod_suppress_output(XrdpUlalaca *_this, int suppress, int left, int top, int right, int bottom) {
+    LOG(LOG_LEVEL_INFO, "lib_mod_suppress_output() called");
     return 0;
 }
 
@@ -200,9 +217,20 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
     
     std::scoped_lock<std::mutex> scopedCommitLock(_commitUpdateLock);
     
+    if ((_frameId - _ackFrameId) > 4) {
+        _dirtyRects.clear();
+        return;
+    }
+    
+    if (_frameId > 0 && _dirtyRects.empty()) {
+        return;
+    }
+    
+    server_begin_update(this);
+    
     Rect screenRect = {0, 0, (short) width, (short) height};
     
-    if (_dirtyRects.size() > 0 && _frameId > 0) {
+    if (_frameId > 0) {
         auto copyRects = createRFXCopyRects(_dirtyRects);
         
         server_paint_rects(
@@ -211,7 +239,7 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
             copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
             (char *) image,
             width, height,
-            0, (_frameId % INT32_MAX)
+            0, (_frameId++ % INT32_MAX)
         );
     } else {
         // paint entire screen
@@ -224,11 +252,9 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
             copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
             (char *) image,
             width, height,
-            0, (_frameId % INT32_MAX)
+            0, (_frameId++ % INT32_MAX)
         );
     }
-    
-    _frameId++;
     
     _dirtyRects.clear();
     server_end_update(this);

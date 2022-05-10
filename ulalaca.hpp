@@ -200,6 +200,7 @@ private:
     int _bpp;
     
     std::atomic_int64_t _frameId = 0;
+    std::atomic_int64_t _ackFrameId = 0;
     
     std::string _username;
     std::string _password;
@@ -215,6 +216,7 @@ private:
     std::unique_ptr<ProjectionThread> _projectionThread;
     
     std::mutex _commitUpdateLock;
+    
     std::vector<Rect> _dirtyRects;
 };
 
