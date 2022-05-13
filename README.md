@@ -11,13 +11,14 @@ this xrdp module requires [ulalaca-sessionprojector](https://github.com/unstable
 # INSTALLATION
 1. fetch xrdp source code
 ```shell
-$ curl -L https://github.com/neutrinolabs/xrdp/releases/download/v0.9.19/xrdp-0.9.19.tar.gz | tar xvz
-cd xrdp-0.9.19
+$ git clone https://github.com/neutrinolabs/xrdp.git xrdp
+$ cd xrdp
+$ git checkout devel
 ```
 
-2. clone ulalaca-xrdp inside xrdp source code
+2. add ulalaca-xrdp as submodule
 ```shell
-$ git clone https://github.com/unstabler/ulalaca-xrdp ulalaca
+$ git submodule add https://github.com/unstabler/ulalaca-xrdp ulalaca
 ```
 
 3. apply patch
