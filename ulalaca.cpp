@@ -133,38 +133,6 @@ int XrdpUlalaca::lib_mod_connect(XrdpUlalaca *_this) {
     return 0;
 }
 
-std::unique_ptr<std::vector<Rect>> XrdpUlalaca::createRFXCopyRects(std::vector<Rect> &dirtyRects) {
-    constexpr const int BLOCK_SIZE = 64;
-    auto clipRects = std::make_unique<std::vector<Rect>>();
-    
-    for (auto &dirtyRect : dirtyRects) {
-        if (_sessionSize.width <= dirtyRect.x ||
-            _sessionSize.height <= dirtyRect.y) {
-            continue;
-        }
-        
-        auto width = std::min(dirtyRect.width, (short) (_sessionSize.width - dirtyRect.x));
-        auto height = std::min(dirtyRect.height, (short) (_sessionSize.height - dirtyRect.y));
-        
-        auto baseX = dirtyRect.x - (dirtyRect.x % BLOCK_SIZE);
-        auto baseY = dirtyRect.y - (dirtyRect.y % BLOCK_SIZE);
-        
-        auto blockCountX = ((width + dirtyRect.x % BLOCK_SIZE) + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
-        auto blockCountY = ((height + dirtyRect.y % BLOCK_SIZE) + (BLOCK_SIZE - 1)) / BLOCK_SIZE;
-        
-        for (int j = 0; j < blockCountY; j++) {
-            for (int i = 0; i < blockCountX; i++) {
-                short x = baseX + (BLOCK_SIZE * i);
-                short y = baseY + (BLOCK_SIZE * j);
-                
-                clipRects->push_back(Rect { x, y, BLOCK_SIZE, BLOCK_SIZE });
-            }
-        }
-    }
-    
-    return std::move(clipRects);
-}
-
 int XrdpUlalaca::lib_mod_signal(XrdpUlalaca *_this) {
     LOG(LOG_LEVEL_INFO, "lib_mod_signal() called");
     return 0;
@@ -215,6 +183,58 @@ int XrdpUlalaca::lib_mod_server_version_message(XrdpUlalaca *_this) {
     return 0;
 }
 
+int XrdpUlalaca::decideCopyRectSize() const {
+    bool isRFXCodec = _clientInfo.rfx_codec_id != 0;
+    bool isJPEGCodec = _clientInfo.jpeg_codec_id != 0;
+    bool isH264Codec = _clientInfo.h264_codec_id != 0;
+
+    if (isRFXCodec || isJPEGCodec) {
+        return 64;
+    }
+
+    if (isH264Codec) {
+        return 256;
+    }
+
+    return RECT_SIZE_BYPASS_CREATE;
+}
+
+std::unique_ptr<std::vector<Rect>> XrdpUlalaca::createCopyRects(std::vector<Rect> &dirtyRects, int rectSize) const {
+    auto blocks = std::make_unique<std::vector<Rect>>();
+
+    if (rectSize == RECT_SIZE_BYPASS_CREATE) {
+        std::copy(dirtyRects.begin(), dirtyRects.end(), std::back_insert_iterator(*blocks));
+        return std::move(blocks);
+    }
+
+    for (auto &dirtyRect : dirtyRects) {
+        if (_sessionSize.width <= dirtyRect.x ||
+            _sessionSize.height <= dirtyRect.y) {
+            continue;
+        }
+
+        auto width = std::min(dirtyRect.width, (short) (_sessionSize.width - dirtyRect.x));
+        auto height = std::min(dirtyRect.height, (short) (_sessionSize.height - dirtyRect.y));
+
+        auto baseX = dirtyRect.x - (dirtyRect.x % rectSize);
+        auto baseY = dirtyRect.y - (dirtyRect.y % rectSize);
+
+        auto blockCountX = ((width + dirtyRect.x % rectSize) + (rectSize - 1)) / rectSize;
+        auto blockCountY = ((height + dirtyRect.y % rectSize) + (rectSize - 1)) / rectSize;
+
+        for (int j = 0; j < blockCountY; j++) {
+            for (int i = 0; i < blockCountX; i++) {
+                short x = baseX + (rectSize * i);
+                short y = baseY + (rectSize * j);
+
+                blocks->push_back(Rect {x, y, (short) rectSize, (short) rectSize });
+            }
+        }
+    }
+
+    return std::move(blocks);
+}
+
 void XrdpUlalaca::addDirtyRect(Rect &rect) {
     _dirtyRects.push_back(rect);
 }
@@ -236,9 +256,10 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
     server_begin_update(this);
     
     Rect screenRect = {0, 0, (short) width, (short) height};
+    auto copyRectSize = decideCopyRectSize();
     
     if (_frameId > 0) {
-        auto copyRects = createRFXCopyRects(_dirtyRects);
+        auto copyRects = createCopyRects(_dirtyRects, copyRectSize);
         
         server_paint_rects(
             this,
@@ -251,7 +272,7 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
     } else {
         // paint entire screen
         auto dirtyRects = std::vector<Rect>{screenRect};
-        auto copyRects = createRFXCopyRects(dirtyRects);
+        auto copyRects = createCopyRects(dirtyRects, copyRectSize);
         
         server_paint_rects(
             this,
@@ -267,11 +288,6 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
     server_end_update(this);
 }
 
-void XrdpUlalaca::serverMessage(const char *message, int code) {
-    this->server_msg(this, message, code);
-    LOG(LOG_LEVEL_INFO, message);
-}
-
 void XrdpUlalaca::calculateSessionSize() {
     // TODO: calculate session size to support multiple display environments
     if (_screenLayouts.empty()) {
@@ -282,6 +298,12 @@ void XrdpUlalaca::calculateSessionSize() {
     }
 
     _sessionSize = _screenLayouts.front();
+}
+
+
+void XrdpUlalaca::serverMessage(const char *message, int code) {
+    this->server_msg(this, message, code);
+    LOG(LOG_LEVEL_INFO, message);
 }
 
 

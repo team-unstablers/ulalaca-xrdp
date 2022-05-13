@@ -159,8 +159,10 @@ struct XrdpUlalaca {
     struct source_info *si;
     
 public:
-    constexpr static int ULALACA_VERSION = 1;
-    constexpr static int NO_ERROR = 0;
+    static const int RECT_SIZE_BYPASS_CREATE = 0;
+
+    constexpr static const int ULALACA_VERSION = 1;
+    constexpr static const int NO_ERROR = 0;
     
     explicit XrdpUlalaca();
     
@@ -183,17 +185,18 @@ public:
     static int lib_mod_server_monitor_full_invalidate(XrdpUlalaca *_this,
                                               int width, int height);
     static int lib_mod_server_version_message(XrdpUlalaca *_this);
-    
-    int handleEvent(XrdpEvent &event);
 
-    void serverMessage(const char *message, int code);
-    
-    inline std::unique_ptr<std::vector<Rect>> createRFXCopyRects(std::vector<Rect> &dirtyRects);
-    
+    /* paint related */
+    inline int decideCopyRectSize() const;
+    inline std::unique_ptr<std::vector<Rect>> createCopyRects(std::vector<Rect> &dirtyRects, int rectSize) const;
+
     void addDirtyRect(Rect &rect);
     void commitUpdate(const uint8_t *image, int32_t width, int32_t height);
 
     void calculateSessionSize();
+
+    /* utility methods / lib_server_* wrappers */
+    void serverMessage(const char *message, int code);
 private:
     int _error = 0;
 
