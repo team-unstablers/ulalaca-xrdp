@@ -24,7 +24,6 @@ extern "C" {
 
 #include "UlalacaMessages.hpp"
 
-
 class ProjectionThread;
 
 extern "C" {
@@ -187,7 +186,6 @@ public:
     
     int handleEvent(XrdpEvent &event);
 
-    
     void serverMessage(const char *message, int code);
     
     inline std::unique_ptr<std::vector<Rect>> createRFXCopyRects(std::vector<Rect> &dirtyRects);
@@ -195,8 +193,13 @@ public:
     void addDirtyRect(Rect &rect);
     void commitUpdate(const uint8_t *image, int32_t width, int32_t height);
 
+    void calculateSessionSize();
 private:
     int _error = 0;
+
+    Rect _sessionSize;
+    std::vector<Rect> _screenLayouts;
+
     int _bpp;
     
     std::atomic_int64_t _frameId = 0;

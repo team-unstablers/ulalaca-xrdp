@@ -64,7 +64,14 @@ int XrdpUlalaca::lib_mod_event(XrdpUlalaca *_this, int type, long arg1, long arg
 
 int XrdpUlalaca::lib_mod_start(XrdpUlalaca *_this, int width, int height, int bpp) {
     constexpr const unsigned int BACKGROUND_COLOR = 0xb97e51;
-    
+
+    _this->_screenLayouts.clear();
+    _this->_screenLayouts.emplace_back(Rect {
+        0, 0, (short) width, (short) height
+    });
+    _this->calculateSessionSize();
+
+
     _this->server_begin_update(_this);
     _this->server_set_fgcolor(_this, (int) BACKGROUND_COLOR);
     _this->server_fill_rect(_this, 0, 0, width, height);
@@ -131,13 +138,13 @@ std::unique_ptr<std::vector<Rect>> XrdpUlalaca::createRFXCopyRects(std::vector<R
     auto clipRects = std::make_unique<std::vector<Rect>>();
     
     for (auto &dirtyRect : dirtyRects) {
-        if (_clientInfo.width <= dirtyRect.x ||
-            _clientInfo.height <= dirtyRect.y) {
+        if (_sessionSize.width <= dirtyRect.x ||
+            _sessionSize.height <= dirtyRect.y) {
             continue;
         }
         
-        auto width = std::min(dirtyRect.width, (short) (_clientInfo.width - dirtyRect.x));
-        auto height = std::min(dirtyRect.height, (short) (_clientInfo.height - dirtyRect.y));
+        auto width = std::min(dirtyRect.width, (short) (_sessionSize.width - dirtyRect.x));
+        auto height = std::min(dirtyRect.height, (short) (_sessionSize.height - dirtyRect.y));
         
         auto baseX = dirtyRect.x - (dirtyRect.x % BLOCK_SIZE);
         auto baseY = dirtyRect.y - (dirtyRect.y % BLOCK_SIZE);
@@ -263,6 +270,18 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
 void XrdpUlalaca::serverMessage(const char *message, int code) {
     this->server_msg(this, message, code);
     LOG(LOG_LEVEL_INFO, message);
+}
+
+void XrdpUlalaca::calculateSessionSize() {
+    // TODO: calculate session size to support multiple display environments
+    if (_screenLayouts.empty()) {
+        _sessionSize = Rect {
+            0, 0, 640, 480
+        };
+        return;
+    }
+
+    _sessionSize = _screenLayouts.front();
 }
 
 
