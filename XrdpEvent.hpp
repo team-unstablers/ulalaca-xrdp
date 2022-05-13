@@ -2,8 +2,8 @@
 // Created by Gyuhwan Park on 2022/04/30.
 //
 
-#ifndef XRDP_XRDPEVENT_HPP
-#define XRDP_XRDPEVENT_HPP
+#ifndef ULALACA_XRDPEVENT_HPP
+#define ULALACA_XRDPEVENT_HPP
 
 struct XrdpEvent {
 public:
@@ -42,4 +42,4 @@ public:
 };
 
 
-#endif //XRDP_XRDPEVENT_HPP
+#endif //ULALACA_XRDPEVENT_HPP

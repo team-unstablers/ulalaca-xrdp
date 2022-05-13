@@ -2,8 +2,8 @@
 // Created by Gyuhwan Park on 2022/05/06.
 //
 
-#ifndef XRDP_PROJECTIONCONTEXT_HPP
-#define XRDP_PROJECTIONCONTEXT_HPP
+#ifndef ULALACA_PROJECTIONCONTEXT_HPP
+#define ULALACA_PROJECTIONCONTEXT_HPP
 
 #include <cstdint>
 
@@ -21,4 +21,4 @@ public:
     ) = 0;
 };
 
-#endif //XRDP_PROJECTIONCONTEXT_HPP
+#endif //ULALACA_PROJECTIONCONTEXT_HPP

@@ -2,8 +2,8 @@
 // Created by Gyuhwan Park on 2022/05/06.
 //
 
-#ifndef XRDP_PROJECTIONTHREAD_HPP
-#define XRDP_PROJECTIONTHREAD_HPP
+#ifndef ULALACA_PROJECTIONTHREAD_HPP
+#define ULALACA_PROJECTIONTHREAD_HPP
 
 #include <memory>
 #include <thread>
@@ -86,4 +86,4 @@ private:
     std::queue<std::pair<size_t, std::promise<std::unique_ptr<uint8_t>> &>> _readTasks;
 };
 
-#endif //XRDP_PROJECTIONTHREAD_HPP
+#endif //ULALACA_PROJECTIONTHREAD_HPP

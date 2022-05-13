@@ -2,8 +2,8 @@
 // Created by cheesekun on 2/28/22.
 //
 
-#ifndef KODA_UNIXSOCKET_HPP
-#define KODA_UNIXSOCKET_HPP
+#ifndef ULALACA_UNIXSOCKET_HPP
+#define ULALACA_UNIXSOCKET_HPP
 
 #include <string>
 
@@ -112,4 +112,4 @@ private:
 
 
 
-#endif //KODA_UNIXSOCKET_HPP
+#endif //ULALACA_UNIXSOCKET_HPP

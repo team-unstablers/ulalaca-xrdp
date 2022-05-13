@@ -2,8 +2,8 @@
 // Created by cheesekun on 2/28/22.
 //
 
-#ifndef KODA_SOCKETSTREAM_HPP
-#define KODA_SOCKETSTREAM_HPP
+#ifndef ULALACA_SOCKETSTREAM_HPP
+#define ULALACA_SOCKETSTREAM_HPP
 
 #include <streambuf>
 
@@ -37,4 +37,4 @@ protected:
 };
 
 
-#endif //KODA_SOCKETSTREAM_HPP
+#endif //ULALACA_SOCKETSTREAM_HPP

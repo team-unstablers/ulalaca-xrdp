@@ -2,8 +2,8 @@
 // Created by Gyuhwan Park on 2022/04/30.
 //
 
-#ifndef XRDP_XRDPTRANSPORT_HPP
-#define XRDP_XRDPTRANSPORT_HPP
+#ifndef ULALACA_XRDPTRANSPORT_HPP
+#define ULALACA_XRDPTRANSPORT_HPP
 
 #include <memory>
 #include <vector>
@@ -53,4 +53,4 @@ private:
     std::unique_ptr<Transport, TransportDeleter> _transport;
 };
 
-#endif //XRDP_XRDPTRANSPORT_HPP
+#endif //ULALACA_XRDPTRANSPORT_HPP

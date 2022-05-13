@@ -2,8 +2,8 @@
 // Created by cheesekun on 2/28/22.
 //
 
-#ifndef KODA_SYSTEMCALLEXCEPTION_HPP
-#define KODA_SYSTEMCALLEXCEPTION_HPP
+#ifndef ULALACA_SYSTEMCALLEXCEPTION_HPP
+#define ULALACA_SYSTEMCALLEXCEPTION_HPP
 
 #include <string>
 #include <exception>
@@ -32,4 +32,4 @@ private:
 };
 
 
-#endif //KODA_SYSTEMCALLEXCEPTION_HPP
+#endif //ULALACA_SYSTEMCALLEXCEPTION_HPP

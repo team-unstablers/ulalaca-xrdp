@@ -2,8 +2,8 @@
 // Created by Gyuhwan Park on 2022/04/30.
 //
 
-#ifndef XRDP_XRDPSTREAM_HPP
-#define XRDP_XRDPSTREAM_HPP
+#ifndef ULALACA_XRDPSTREAM_HPP
+#define ULALACA_XRDPSTREAM_HPP
 
 #include <memory>
 #include <functional>
@@ -31,4 +31,4 @@ private:
     std::unique_ptr<Stream, StreamDeleter> _stream;
 };
 
-#endif //XRDP_XRDPSTREAM_HPP
+#endif //ULALACA_XRDPSTREAM_HPP
