@@ -7,10 +7,11 @@
 #endif
 
 #include <algorithm>
-#include <iostream>
-#include <string>
-#include <functional>
 #include <chrono>
+#include <functional>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 #include "ulalaca.hpp"
 #include "SocketStream.hpp"
@@ -112,17 +113,18 @@ int XrdpUlalaca::lib_mod_set_param(XrdpUlalaca *_this, const char *_name, const 
 
 int XrdpUlalaca::lib_mod_connect(XrdpUlalaca *_this) {
     _this->serverMessage("establishing connection to SessionProjector", 0);
-
     
     try {
         _this->_socket = std::make_unique<UnixSocket>(
-            "/Users/unstabler/ulalaca-projector.socket"
+            _this->getSessionSocketPath(_this->_username)
         );
         _this->_socket->connect();
     } catch (SystemCallException &e) {
         _this->serverMessage(e.what(), 0);
         return 1;
     }
+    
+    _this->_password.clear();
     
     _this->_projectionThread = std::make_unique<ProjectionThread>(
         *_this, *(_this->_socket)
@@ -181,6 +183,13 @@ int XrdpUlalaca::lib_mod_server_monitor_full_invalidate(XrdpUlalaca *_this, int 
 
 int XrdpUlalaca::lib_mod_server_version_message(XrdpUlalaca *_this) {
     return 0;
+}
+
+std::string XrdpUlalaca::getSessionSocketPath(std::string &username) {
+    std::stringstream sstream;
+    sstream << "/Users/" << username << "/.ulalaca_projector.sock";
+    
+    return sstream.str();
 }
 
 int XrdpUlalaca::decideCopyRectSize() const {

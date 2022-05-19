@@ -185,6 +185,10 @@ public:
     static int lib_mod_server_monitor_full_invalidate(XrdpUlalaca *_this,
                                               int width, int height);
     static int lib_mod_server_version_message(XrdpUlalaca *_this);
+    
+    /* session-broker related */
+    /** @deprecated */
+    inline std::string getSessionSocketPath(std::string &username);
 
     /* paint related */
     inline int decideCopyRectSize() const;
