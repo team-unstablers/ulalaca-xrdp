@@ -43,8 +43,68 @@ XrdpUlalaca::XrdpUlalaca():
     mod_suppress_output(&lib_mod_suppress_output),
     mod_server_monitor_resize(&lib_mod_server_monitor_resize),
     mod_server_monitor_full_invalidate(&lib_mod_server_monitor_full_invalidate),
-    mod_server_version_message(&lib_mod_server_version_message)
-
+    mod_server_version_message(&lib_mod_server_version_message),
+    
+    /* server functions */
+    server_begin_update(nullptr),
+    server_end_update(nullptr),
+    server_fill_rect(nullptr),
+    server_screen_blt(nullptr),
+    server_paint_rect(nullptr),
+    server_set_cursor(nullptr),
+    server_palette(nullptr),
+    server_msg(nullptr),
+    server_is_term(nullptr),
+    server_set_clip(nullptr),
+    server_reset_clip(nullptr),
+    server_set_fgcolor(nullptr),
+    server_set_bgcolor(nullptr),
+    server_set_opcode(nullptr),
+    server_set_mixmode(nullptr),
+    server_set_brush(nullptr),
+    server_set_pen(nullptr),
+    server_draw_line(nullptr),
+    server_add_char(nullptr),
+    server_draw_text(nullptr),
+    server_reset(nullptr),
+    server_get_channel_count(nullptr),
+    server_query_channel(nullptr),
+    server_get_channel_id(nullptr),
+    server_send_to_channel(nullptr),
+    server_bell_trigger(nullptr),
+    server_chansrv_in_use(nullptr),
+    
+    /* off screen bitmaps */
+    server_create_os_surface(nullptr),
+    server_switch_os_surface(nullptr),
+    server_delete_os_surface(nullptr),
+    server_paint_rect_os(nullptr),
+    server_set_hints(nullptr),
+    
+    /* rail */
+    server_window_new_update(nullptr),
+    server_window_delete(nullptr),
+    server_window_icon(nullptr),
+    server_window_cached_icon(nullptr),
+    server_notify_new_update(nullptr),
+    server_notify_delete(nullptr),
+    server_monitored_desktop(nullptr),
+    server_set_pointer_ex(nullptr),
+    server_add_char_alpha(nullptr),
+    server_create_os_surface_bpp(nullptr),
+    server_paint_rect_bpp(nullptr),
+    server_composite(nullptr),
+    server_paint_rects(nullptr),
+    server_session_info(nullptr),
+    
+    si(nullptr),
+    
+    _sessionSize { 0, 0, 640, 480 },
+    
+    _bpp(0),
+    _encodingsMask(0),
+    _keyLayout(0),
+    _delayMs(0)
 {
 }
 
@@ -80,6 +140,8 @@ int XrdpUlalaca::lib_mod_start(XrdpUlalaca *_this, int width, int height, int bp
     
     _this->_bpp = bpp;
     // _this->updateBpp(bpp);
+    
+    return 0;
 }
 
 int XrdpUlalaca::lib_mod_set_param(XrdpUlalaca *_this, const char *_name, const char *_value) {
@@ -202,7 +264,8 @@ int XrdpUlalaca::decideCopyRectSize() const {
     }
 
     if (isH264Codec) {
-        return 256;
+        // return 256;
+        return RECT_SIZE_BYPASS_CREATE;
     }
 
     return RECT_SIZE_BYPASS_CREATE;
@@ -249,7 +312,7 @@ void XrdpUlalaca::addDirtyRect(Rect &rect) {
 }
 
 void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t height) {
-    LOG(LOG_LEVEL_TRACE, "painting: %d, (%d, %d) -> (%d, %d)", width, height);
+    LOG(LOG_LEVEL_TRACE, "painting: %d, %d", width, height);
     
     std::scoped_lock<std::mutex> scopedCommitLock(_commitUpdateLock);
     
@@ -312,7 +375,7 @@ void XrdpUlalaca::calculateSessionSize() {
 
 void XrdpUlalaca::serverMessage(const char *message, int code) {
     this->server_msg(this, message, code);
-    LOG(LOG_LEVEL_INFO, message);
+    LOG(LOG_LEVEL_INFO, "%s", message);
 }
 
 
