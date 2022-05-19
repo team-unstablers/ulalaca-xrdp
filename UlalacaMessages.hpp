@@ -16,6 +16,48 @@ struct Rect {
     short height;
 } __attribute__ ((packed));
 
+namespace broker {
+    enum MessageType: uint16_t {
+        IN_SESSION_READY = 0xA100,
+        IN_REQUEST_REJECTION = 0xA101,
+    
+        OUT_REQUEST_SESSION = 0xA011,
+    };
+    
+    struct MessageHeader {
+        uint32_t version;
+        
+        uint16_t messageType;
+        uint64_t timestamp;
+        
+        uint64_t length;
+    } FIXME_MARK_AS_PACKED_STRUCT;
+    
+    /**
+     * incoming message
+     */
+    struct SessionReady {
+        uint64_t sessionId;
+        bool isLoginSession;
+        
+        char path[1024];
+    } FIXME_MARK_AS_PACKED_STRUCT;
+    
+    struct RequestRejection {
+        static const uint8_t REASON_INTERNAL_ERROR = 0;
+        static const uint8_t REASON_AUTHENTICATION_FAILED = 1;
+        static const uint8_t REASON_SESSION_NOT_AVAILABLE = 2;
+        static const uint8_t REASON_INCOMPATIBLE_VERSION = 3;
+        
+        uint8_t reason;
+    } FIXME_MARK_AS_PACKED_STRUCT;
+    
+    struct RequestSession {
+        char username[64];
+        char password[256];
+    } FIXME_MARK_AS_PACKED_STRUCT;
+}
+
 namespace projector {
     
     enum MessageType: uint16_t {
@@ -28,7 +70,7 @@ namespace projector {
         
         OUT_MOUSE_MOVE_EVENT = 0x0321,
         OUT_MOUSE_BUTTON_EVENT = 0x0322,
-        OUT_MOUSE_WHEEL_EVENT = 0x0323
+        OUT_MOUSE_WHEEL_EVENT = 0x0323,
     };
     
     struct MessageHeader {
