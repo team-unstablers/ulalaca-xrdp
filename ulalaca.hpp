@@ -54,102 +54,102 @@ struct XrdpUlalaca {
     tintptr mod_dumby[100 - 14]; /* align, 100 minus the number of mod
                                   functions above */
     /* server functions */
-    int (*server_begin_update)(XrdpUlalaca *v);
-    int (*server_end_update)(XrdpUlalaca *v);
-    int (*server_fill_rect)(XrdpUlalaca *v, int x, int y, int cx, int cy);
+    int (*server_begin_update)(XrdpUlalaca *v) = nullptr;
+    int (*server_end_update)(XrdpUlalaca *v) = nullptr;
+    int (*server_fill_rect)(XrdpUlalaca *v, int x, int y, int cx, int cy) = nullptr;
     int (*server_screen_blt)(XrdpUlalaca *v, int x, int y, int cx, int cy,
-                             int srcx, int srcy);
+                             int srcx, int srcy) = nullptr;
     int (*server_paint_rect)(XrdpUlalaca *v, int x, int y, int cx, int cy,
-                             char *data, int width, int height, int srcx, int srcy);
-    int (*server_set_cursor)(XrdpUlalaca *v, int x, int y, char *data, char *mask);
-    int (*server_palette)(XrdpUlalaca *v, int *palette);
-    int (*server_msg)(XrdpUlalaca *v, const char *msg, int code);
-    int (*server_is_term)(XrdpUlalaca *v);
-    int (*server_set_clip)(XrdpUlalaca *v, int x, int y, int cx, int cy);
-    int (*server_reset_clip)(XrdpUlalaca *v);
-    int (*server_set_fgcolor)(XrdpUlalaca *v, int fgcolor);
-    int (*server_set_bgcolor)(XrdpUlalaca *v, int bgcolor);
-    int (*server_set_opcode)(XrdpUlalaca *v, int opcode);
-    int (*server_set_mixmode)(XrdpUlalaca *v, int mixmode);
+                             char *data, int width, int height, int srcx, int srcy) = nullptr;
+    int (*server_set_cursor)(XrdpUlalaca *v, int x, int y, char *data, char *mask) = nullptr;
+    int (*server_palette)(XrdpUlalaca *v, int *palette) = nullptr;
+    int (*server_msg)(XrdpUlalaca *v, const char *msg, int code) = nullptr;
+    int (*server_is_term)(XrdpUlalaca *v) = nullptr;
+    int (*server_set_clip)(XrdpUlalaca *v, int x, int y, int cx, int cy) = nullptr;
+    int (*server_reset_clip)(XrdpUlalaca *v) = nullptr;
+    int (*server_set_fgcolor)(XrdpUlalaca *v, int fgcolor) = nullptr;
+    int (*server_set_bgcolor)(XrdpUlalaca *v, int bgcolor) = nullptr;
+    int (*server_set_opcode)(XrdpUlalaca *v, int opcode) = nullptr;
+    int (*server_set_mixmode)(XrdpUlalaca *v, int mixmode) = nullptr;
     int (*server_set_brush)(XrdpUlalaca *v, int x_origin, int y_origin,
-                            int style, char *pattern);
+                            int style, char *pattern) = nullptr;
     int (*server_set_pen)(XrdpUlalaca *v, int style,
-                          int width);
-    int (*server_draw_line)(XrdpUlalaca *v, int x1, int y1, int x2, int y2);
+                          int width) = nullptr;
+    int (*server_draw_line)(XrdpUlalaca *v, int x1, int y1, int x2, int y2) = nullptr;
     int (*server_add_char)(XrdpUlalaca *v, int font, int character,
                            int offset, int baseline,
-                           int width, int height, char *data);
+                           int width, int height, char *data) = nullptr;
     int (*server_draw_text)(XrdpUlalaca *v, int font,
                             int flags, int mixmode, int clip_left, int clip_top,
                             int clip_right, int clip_bottom,
                             int box_left, int box_top,
                             int box_right, int box_bottom,
-                            int x, int y, char *data, int data_len);
-    int (*server_reset)(XrdpUlalaca *v, int width, int height, int bpp);
-    int (*server_get_channel_count)(XrdpUlalaca *v);
+                            int x, int y, char *data, int data_len) = nullptr;
+    int (*server_reset)(XrdpUlalaca *v, int width, int height, int bpp) = nullptr;
+    int (*server_get_channel_count)(XrdpUlalaca *v) = nullptr;
     int (*server_query_channel)(XrdpUlalaca *v, int index,
                                 char *channel_name,
-                                int *channel_flags);
-    int (*server_get_channel_id)(XrdpUlalaca *v, const char *name);
+                                int *channel_flags) = nullptr;
+    int (*server_get_channel_id)(XrdpUlalaca *v, const char *name) = nullptr;
     int (*server_send_to_channel)(XrdpUlalaca *v, int channel_id,
                                   char *data, int data_len,
-                                  int total_data_len, int flags);
-    int (*server_bell_trigger)(XrdpUlalaca *v);
-    int (*server_chansrv_in_use)(XrdpUlalaca *v);
+                                  int total_data_len, int flags) = nullptr;
+    int (*server_bell_trigger)(XrdpUlalaca *v) = nullptr;
+    int (*server_chansrv_in_use)(XrdpUlalaca *v) = nullptr;
     /* off screen bitmaps */
     int (*server_create_os_surface)(XrdpUlalaca *v, int rdpindex,
-                                    int width, int height);
-    int (*server_switch_os_surface)(XrdpUlalaca *v, int rdpindex);
-    int (*server_delete_os_surface)(XrdpUlalaca *v, int rdpindex);
+                                    int width, int height) = nullptr;
+    int (*server_switch_os_surface)(XrdpUlalaca *v, int rdpindex) = nullptr;
+    int (*server_delete_os_surface)(XrdpUlalaca *v, int rdpindex) = nullptr;
     int (*server_paint_rect_os)(XrdpUlalaca *mod, int x, int y,
                                 int cx, int cy,
-                                int rdpindex, int srcx, int srcy);
-    int (*server_set_hints)(XrdpUlalaca *mod, int hints, int mask);
+                                int rdpindex, int srcx, int srcy) = nullptr;
+    int (*server_set_hints)(XrdpUlalaca *mod, int hints, int mask) = nullptr;
     /* rail */
     int (*server_window_new_update)(XrdpUlalaca *mod, int window_id,
                                     struct rail_window_state_order *window_state,
-                                    int flags);
-    int (*server_window_delete)(XrdpUlalaca *mod, int window_id);
+                                    int flags) = nullptr;
+    int (*server_window_delete)(XrdpUlalaca *mod, int window_id) = nullptr;
     int (*server_window_icon)(XrdpUlalaca *mod,
                               int window_id, int cache_entry, int cache_id,
                               struct rail_icon_info *icon_info,
-                              int flags);
+                              int flags) = nullptr;
     int (*server_window_cached_icon)(XrdpUlalaca *mod,
                                      int window_id, int cache_entry,
-                                     int cache_id, int flags);
+                                     int cache_id, int flags) = nullptr;
     int (*server_notify_new_update)(XrdpUlalaca *mod,
                                     int window_id, int notify_id,
                                     struct rail_notify_state_order *notify_state,
-                                    int flags);
+                                    int flags) = nullptr;
     int (*server_notify_delete)(XrdpUlalaca *mod, int window_id,
-                                int notify_id);
+                                int notify_id) = nullptr;
     int (*server_monitored_desktop)(XrdpUlalaca *mod,
                                     struct rail_monitored_desktop_order *mdo,
-                                    int flags);
+                                    int flags) = nullptr;
     int (*server_set_pointer_ex)(XrdpUlalaca *mod, int x, int y, char *data,
-                                 char *mask, int bpp);
+                                 char *mask, int bpp) = nullptr;
     int (*server_add_char_alpha)(XrdpUlalaca *mod, int font, int character,
                                  int offset, int baseline,
-                                 int width, int height, char *data);
+                                 int width, int height, char *data) = nullptr;
     int (*server_create_os_surface_bpp)(XrdpUlalaca *v, int rdpindex,
-                                        int width, int height, int bpp);
+                                        int width, int height, int bpp) = nullptr;
     int (*server_paint_rect_bpp)(XrdpUlalaca *v, int x, int y, int cx, int cy,
                                  char *data, int width, int height,
-                                 int srcx, int srcy, int bpp);
+                                 int srcx, int srcy, int bpp) = nullptr;
     int (*server_composite)(XrdpUlalaca *v, int srcidx, int srcformat,
                             int srcwidth, int srcrepeat, int *srctransform,
                             int mskflags, int mskidx, int mskformat,
                             int mskwidth, int mskrepeat, int op,
                             int srcx, int srcy, int mskx, int msky,
                             int dstx, int dsty, int width, int height,
-                            int dstformat);
+                            int dstformat) = nullptr;
     int (*server_paint_rects)(XrdpUlalaca *v,
                               int num_drects, short *drects,
                               int num_crects, short *crects,
                               char *data, int width, int height,
-                              int flags, int frame_id);
+                              int flags, int frame_id) = nullptr;
     int (*server_session_info)(XrdpUlalaca *v, const char *data,
-                               int data_bytes);
+                               int data_bytes) = nullptr;
     tintptr server_dumby[100 - 46]; /* align, 100 minus the number of server
                                        functions above */
     /* common */
