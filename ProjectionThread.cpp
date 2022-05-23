@@ -39,20 +39,18 @@ void ProjectionThread::stop() {
 }
 
 void ProjectionThread::handleEvent(XrdpEvent &event) {
-    using namespace projector;
-    
     if (event.isKeyEvent()) {
         auto keycode = event.param3;
         auto cgKeycode = rdpKeycodeToCGKeycode(keycode);
         auto eventType = event.type == XrdpEvent::KEY_DOWN ?
-            KeyboardEvent::TYPE_KEYDOWN :
-            KeyboardEvent::TYPE_KEYUP;
+            KEY_EVENT_TYPE_KEYDOWN :
+            KEY_EVENT_TYPE_KEYUP;
         
         if (cgKeycode == -1) {
             return;
         }
         
-        writeMessage(MessageType::OUT_KEYBOARD_EVENT, KeyboardEvent {
+        writeMessage(OUT_KEYBOARD_EVENT, KeyboardEvent {
             eventType, (uint32_t) cgKeycode, 0
         });
     } else if (event.type == XrdpEvent::KEY_SYNCHRONIZE_LOCK) {
@@ -65,7 +63,7 @@ void ProjectionThread::handleEvent(XrdpEvent &event) {
                 uint16_t posX = event.param1;
                 uint16_t posY = event.param2;
                 
-                writeMessage(MessageType::OUT_MOUSE_MOVE_EVENT, MouseMoveEvent {
+                writeMessage(OUT_MOUSE_MOVE_EVENT, MouseMoveEvent {
                     posX, posY,
                     0
                 });
@@ -73,17 +71,17 @@ void ProjectionThread::handleEvent(XrdpEvent &event) {
             }
             
             case XrdpEvent::MOUSE_BUTTON_LEFT_DOWN: {
-                writeMessage(MessageType::OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
-                    MouseButtonEvent::TYPE_MOUSEDOWN,
-                    MouseButtonEvent::BUTTON_LEFT,
+                writeMessage(OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
+                    MOUSE_EVENT_TYPE_MOUSEDOWN,
+                    MOUSE_EVENT_BUTTON_LEFT,
                     0
                 });
                 return;
             }
             case XrdpEvent::MOUSE_BUTTON_LEFT_UP: {
-                writeMessage(MessageType::OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
-                    MouseButtonEvent::TYPE_MOUSEUP,
-                    MouseButtonEvent::BUTTON_LEFT,
+                writeMessage(OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
+                    MOUSE_EVENT_TYPE_MOUSEUP,
+                    MOUSE_EVENT_BUTTON_LEFT,
                     0
                 });
                 return;
@@ -91,17 +89,17 @@ void ProjectionThread::handleEvent(XrdpEvent &event) {
     
     
             case XrdpEvent::MOUSE_BUTTON_RIGHT_DOWN: {
-                writeMessage(MessageType::OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
-                    MouseButtonEvent::TYPE_MOUSEDOWN,
-                    MouseButtonEvent::BUTTON_RIGHT,
+                writeMessage(OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
+                    MOUSE_EVENT_TYPE_MOUSEDOWN,
+                    MOUSE_EVENT_BUTTON_RIGHT,
                     0
                 });
                 return;
             }
             case XrdpEvent::MOUSE_BUTTON_RIGHT_UP: {
-                writeMessage(MessageType::OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
-                    MouseButtonEvent::TYPE_MOUSEUP,
-                    MouseButtonEvent::BUTTON_RIGHT,
+                writeMessage(OUT_MOUSE_BUTTON_EVENT, MouseButtonEvent {
+                    MOUSE_EVENT_TYPE_MOUSEUP,
+                    MOUSE_EVENT_BUTTON_RIGHT,
                     0
                 });
                 return;
@@ -149,15 +147,15 @@ void ProjectionThread::mainLoop() {
         auto header = nextHeader();
         
         switch (header->messageType) {
-            case projector::IN_SCREEN_UPDATE_EVENT: {
-                auto updateEvent = read<projector::ScreenUpdateEvent>(header->length);
+            case IN_SCREEN_UPDATE_EVENT: {
+                auto updateEvent = read<ScreenUpdateEvent>(header->length);
     
                 LOG(LOG_LEVEL_DEBUG, "mainLoop(): adding dirty rect");
                 _xrdpUlalaca.addDirtyRect(updateEvent->rect);
                 continue;
             }
-            case projector::IN_SCREEN_COMMIT_UPDATE: {
-                auto commitUpdate = read<projector::ScreenCommitUpdate>(header->length);
+            case IN_SCREEN_COMMIT_UPDATE: {
+                auto commitUpdate = read<ScreenCommitUpdate>(header->length);
                 auto bitmap = read<uint8_t>(commitUpdate->bitmapLength);
     
                 LOG(LOG_LEVEL_DEBUG, "mainLoop(): commiting update");
@@ -238,8 +236,8 @@ void ProjectionThread::ioLoop() {
     }
 }
 
-std::unique_ptr<projector::MessageHeader, MallocFreeDeleter> ProjectionThread::nextHeader() {
-    return std::move(read<projector::MessageHeader>(sizeof(projector::MessageHeader)));
+std::unique_ptr<ProjectorMessageHeader, MallocFreeDeleter> ProjectionThread::nextHeader() {
+    return std::move(read<ProjectorMessageHeader>(sizeof(ProjectorMessageHeader)));
 }
 
 void ProjectionThread::write(const void *pointer, size_t size) {

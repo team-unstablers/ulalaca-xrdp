@@ -12,7 +12,8 @@
 
 #include "UnixSocket.hpp"
 
-#include "UlalacaMessages.hpp"
+#include "messages/projector.h"
+
 #include "ulalaca.hpp"
 
 using MallocFreeDeleter = std::function<void(void *)>;
@@ -32,7 +33,7 @@ private:
     void mainLoop();
     void ioLoop();
     
-    std::unique_ptr<projector::MessageHeader, MallocFreeDeleter> nextHeader();
+    std::unique_ptr<ProjectorMessageHeader, MallocFreeDeleter> nextHeader();
     
     template<typename T>
     std::unique_ptr<T, MallocFreeDeleter> read(size_t size) {
@@ -54,8 +55,8 @@ private:
     void write(const void *pointer, size_t size);
     
     template <typename T>
-    void writeMessage(projector::MessageType messageType, T message) {
-        auto header = projector::MessageHeader {
+    void writeMessage(uint16_t messageType, T message) {
+        auto header = ProjectorMessageHeader {
             (uint16_t) messageType,
             0, 0,
             0,
