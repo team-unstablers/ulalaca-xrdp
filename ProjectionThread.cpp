@@ -119,6 +119,8 @@ void ProjectionThread::handleEvent(XrdpEvent &event) {
                 return;
             }
             
+            default:
+                break;
         }
     
     }

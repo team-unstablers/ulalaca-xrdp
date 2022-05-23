@@ -29,12 +29,8 @@ public:
     
     void handleEvent(XrdpEvent &event);
 private:
-    [[noreturn]]
     void mainLoop();
-    
-    [[noreturn]]
     void ioLoop();
-    
     
     std::unique_ptr<projector::MessageHeader, MallocFreeDeleter> nextHeader();
     

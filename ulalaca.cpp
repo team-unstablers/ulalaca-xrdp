@@ -43,8 +43,16 @@ XrdpUlalaca::XrdpUlalaca():
     mod_suppress_output(&lib_mod_suppress_output),
     mod_server_monitor_resize(&lib_mod_server_monitor_resize),
     mod_server_monitor_full_invalidate(&lib_mod_server_monitor_full_invalidate),
-    mod_server_version_message(&lib_mod_server_version_message)
-
+    mod_server_version_message(&lib_mod_server_version_message),
+    
+    si(nullptr),
+    
+    _sessionSize { 0, 0, 640, 480 },
+    
+    _bpp(0),
+    _encodingsMask(0),
+    _keyLayout(0),
+    _delayMs(0)
 {
 }
 
@@ -80,6 +88,8 @@ int XrdpUlalaca::lib_mod_start(XrdpUlalaca *_this, int width, int height, int bp
     
     _this->_bpp = bpp;
     // _this->updateBpp(bpp);
+    
+    return 0;
 }
 
 int XrdpUlalaca::lib_mod_set_param(XrdpUlalaca *_this, const char *_name, const char *_value) {
@@ -202,7 +212,8 @@ int XrdpUlalaca::decideCopyRectSize() const {
     }
 
     if (isH264Codec) {
-        return 256;
+        // return 256;
+        return RECT_SIZE_BYPASS_CREATE;
     }
 
     return RECT_SIZE_BYPASS_CREATE;
@@ -249,7 +260,7 @@ void XrdpUlalaca::addDirtyRect(Rect &rect) {
 }
 
 void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t height) {
-    LOG(LOG_LEVEL_TRACE, "painting: %d, (%d, %d) -> (%d, %d)", width, height);
+    LOG(LOG_LEVEL_TRACE, "painting: %d, %d", width, height);
     
     std::scoped_lock<std::mutex> scopedCommitLock(_commitUpdateLock);
     
@@ -312,7 +323,7 @@ void XrdpUlalaca::calculateSessionSize() {
 
 void XrdpUlalaca::serverMessage(const char *message, int code) {
     this->server_msg(this, message, code);
-    LOG(LOG_LEVEL_INFO, message);
+    LOG(LOG_LEVEL_INFO, "%s", message);
 }
 
 
