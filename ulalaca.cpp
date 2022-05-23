@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 
+#include "messages/broker.h"
 #include "ulalaca.hpp"
 #include "SocketStream.hpp"
 
@@ -122,11 +123,54 @@ int XrdpUlalaca::lib_mod_set_param(XrdpUlalaca *_this, const char *_name, const 
 }
 
 int XrdpUlalaca::lib_mod_connect(XrdpUlalaca *_this) {
-    _this->serverMessage("establishing connection to SessionProjector", 0);
+    std::string socketPath;
+    
+    {
+        _this->serverMessage("", 0);
+        UnixSocket brokerSocket("/var/run/ulalaca_broker.sock");
+        brokerSocket.connect();
+        
+        {
+            BrokerMessageHeader header {
+                0,
+                REQUEST_SESSION,
+                0,
+                sizeof(RequestSession)
+            };
+            
+            RequestSession message {};
+            
+            std::strncpy(&message.username[0], _this->_username.c_str(), sizeof(message.username));
+            std::strncpy(&message.password[0], _this->_password.c_str(), sizeof(message.password));
+            
+            brokerSocket.write(&header, sizeof(header));
+            brokerSocket.write(&message, sizeof(message));
+        }
+        {
+            BrokerMessageHeader header {};
+            brokerSocket.read(&header, sizeof(header));
+            
+            if (header.messageType == RESPONSE_REJECTION) {
+                brokerSocket.close();
+                _this->serverMessage("invalid credential", 0);
+                return 1;
+            }
+            if (header.messageType == RESPONSE_SESSION_READY) {
+                SessionReady message {};
+                brokerSocket.read(&message, sizeof(message));
+                
+                socketPath = std::string(message.path);
+            }
+        }
+        
+        brokerSocket.close();
+    }
     
     try {
+        _this->serverMessage("establishing connection to SessionProjector", 0);
+        
         _this->_socket = std::make_unique<UnixSocket>(
-            _this->getSessionSocketPath(_this->_username)
+            socketPath
         );
         _this->_socket->connect();
     } catch (SystemCallException &e) {

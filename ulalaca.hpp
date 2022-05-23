@@ -22,7 +22,7 @@ extern "C" {
 
 #include "UnixSocket.hpp"
 
-#include "UlalacaMessages.hpp"
+#include "messages/projector.h"
 
 class ProjectionThread;
 
