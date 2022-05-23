@@ -1,12 +1,11 @@
-# 麗 -ulalaca-
+# ulalaca-xrdp 
 
 ![sosumi](https://user-images.githubusercontent.com/964412/166627076-616c1252-aede-4f33-9084-9a483caa5a8c.png)
 
-this xrdp module requires [ulalaca-sessionprojector](https://github.com/unstabler/ulalaca)
+# NOTE
 
-# TODO / BUGS
-
-- NOT SUITABLE FOR PRODUCTION USE YET
+- **STILL IN HEAVY DEVELOPMENT, NOT SUITABLE FOR PRODUCTION USE YET**
+- This xrdp module requires `sessionbroker` and `sessionprojector`, you can get these apps from [麗 -ulalaca-](https://github.com/unstabler/ulalaca).
 
 # INSTALLATION
 1. fetch xrdp source code
@@ -16,29 +15,15 @@ $ cd xrdp
 $ git checkout devel
 ```
 
-2. add ulalaca-xrdp as submodule
-```shell
-$ git submodule add https://github.com/unstabler/ulalaca-xrdp ulalaca
-```
+2. add ulalaca-xrdp into xrdp source tree
 
 3. apply patch
 ```shell
 $ patch -p1 < ulalaca/xrdp-automake.patch
 $ patch -p1 < ulalaca/xrdp-encoder-force-use-bgra.patch
-
-# + fix hard-coded socket path
-$ vi ulalaca/ulalaca.cpp
-```
-```diff
-         _this->_socket = std::make_unique<UnixSocket>(
--             "/Users/unstabler/ulalaca-projector.socket"
-+             "..."
-         );
-         _this->_socket->connect();
-
 ```
 
-4. build & install
+4. build and install
 ```shell
 $ ./bootstrap
 $ ./configure --enable-pixman PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:/usr/local/opt/libjpeg-turbo/lib/pkgconf
@@ -70,5 +55,19 @@ $ make install
 +[Ulalaca]
 +name=Ulalaca
 +lib=libulalaca.dylib
++username=ask
++password=ask
 ```
 
+# AUTHOR
+
+This software brought to you by [team unstablers](https://unstabler.pl).
+
+### team unstablers
+
+- Gyuhwan Park (@unstabler)
+
+
+### THANKS TO
+
+- @am0c - 형 앞으로도 계속 하늘에서 저 지켜봐 주세요!! \ ' ')/
