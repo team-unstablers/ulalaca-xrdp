@@ -24,6 +24,8 @@ libulalaca_la_SOURCES = \
   XrdpStream.hpp \
   XrdpStream.cpp \
   UlalacaMessages.hpp \
+  IPCConnection.hpp \
+  IPCConnection.cpp \
   ProjectionThread.hpp \
   ProjectionThread.cpp \
   KeycodeMap.cpp \

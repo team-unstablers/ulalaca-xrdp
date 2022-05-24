@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 
+#include "messages/broker.h"
 #include "ulalaca.hpp"
 #include "SocketStream.hpp"
 
@@ -122,24 +123,26 @@ int XrdpUlalaca::lib_mod_set_param(XrdpUlalaca *_this, const char *_name, const 
 }
 
 int XrdpUlalaca::lib_mod_connect(XrdpUlalaca *_this) {
-    _this->serverMessage("establishing connection to SessionProjector", 0);
-    
     try {
-        _this->_socket = std::make_unique<UnixSocket>(
-            _this->getSessionSocketPath(_this->_username)
+        std::string socketPath = _this->getSessionSocketPathUsingCredential(
+            _this->_username, _this->_password
         );
-        _this->_socket->connect();
+        _this->_password.clear();
+        
+        if (socketPath.empty()) {
+            return 1;
+        }
+    
+        _this->_projectionThread = std::make_unique<ProjectionThread>(
+            *_this, socketPath
+        );
+    
+        _this->_projectionThread->start();
     } catch (SystemCallException &e) {
         _this->serverMessage(e.what(), 0);
         return 1;
     }
-    
-    _this->_password.clear();
-    
-    _this->_projectionThread = std::make_unique<ProjectionThread>(
-        *_this, *(_this->_socket)
-    );
-    _this->_projectionThread->start();
+
     _this->serverMessage("welcome to the fantasy zone, get ready!", 0);
     
     return 0;
@@ -152,6 +155,11 @@ int XrdpUlalaca::lib_mod_signal(XrdpUlalaca *_this) {
 
 int XrdpUlalaca::lib_mod_end(XrdpUlalaca *_this) {
     LOG(LOG_LEVEL_INFO, "lib_mod_end() called");
+    
+    if (_this->_projectionThread != nullptr) {
+        _this->_projectionThread->stop();
+    }
+    
     return 0;
 }
 
@@ -195,22 +203,59 @@ int XrdpUlalaca::lib_mod_server_version_message(XrdpUlalaca *_this) {
     return 0;
 }
 
-std::string XrdpUlalaca::getSessionSocketPath(std::string &username) {
-    std::stringstream sstream;
-    sstream << "/Users/" << username << "/.ulalaca_projector.sock";
+std::string XrdpUlalaca::getSessionSocketPathUsingCredential(
+    const std::string &username,
+    const std::string &password
+) {
+    std::string socketPath;
     
-    return sstream.str();
+    IPCConnection connection("/var/run/ulalaca_broker.sock");
+    connection.connect();
+    {
+        using namespace std::chrono_literals;
+        
+        ULIPCSessionRequest request {};
+        std::strncpy(&request.username[0], username.c_str(), sizeof(request.username));
+        std::strncpy(&request.password[0], password.c_str(), sizeof(request.password));
+        
+        connection.writeMessage(TYPE_SESSION_REQUEST, request);
+        std::memset(&request.password, 0x00, sizeof(request.password));
+        
+        auto responseHeader = connection.nextHeader();
+        
+        switch (responseHeader->messageType) {
+            case TYPE_SESSION_REQUEST_RESOLVED: {
+                auto response = connection.read<ULIPCSessionRequestResolved>(
+                    sizeof(ULIPCSessionRequestResolved)
+                );
+                
+                socketPath = std::string(response->path);
+            }
+            break;
+            
+            case TYPE_SESSION_REQUEST_REJECTED:
+            default: {
+                this->serverMessage("invalid credential", 0);
+            }
+            break;
+            
+        }
+    }
+    connection.disconnect();
+    
+    
+    return socketPath;
 }
 
 int XrdpUlalaca::decideCopyRectSize() const {
     bool isRFXCodec = _clientInfo.rfx_codec_id != 0;
     bool isJPEGCodec = _clientInfo.jpeg_codec_id != 0;
     bool isH264Codec = _clientInfo.h264_codec_id != 0;
-
+    
     if (isRFXCodec || isJPEGCodec) {
         return 64;
     }
-
+    
     if (isH264Codec) {
         // return 256;
         return RECT_SIZE_BYPASS_CREATE;
@@ -219,7 +264,10 @@ int XrdpUlalaca::decideCopyRectSize() const {
     return RECT_SIZE_BYPASS_CREATE;
 }
 
-std::unique_ptr<std::vector<Rect>> XrdpUlalaca::createCopyRects(std::vector<Rect> &dirtyRects, int rectSize) const {
+std::unique_ptr<std::vector<XrdpUlalaca::Rect>> XrdpUlalaca::createCopyRects(
+    std::vector<Rect> &dirtyRects,
+    int rectSize
+) const {
     auto blocks = std::make_unique<std::vector<Rect>>();
 
     if (rectSize == RECT_SIZE_BYPASS_CREATE) {

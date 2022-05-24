@@ -22,7 +22,7 @@ extern "C" {
 
 #include "UnixSocket.hpp"
 
-#include "UlalacaMessages.hpp"
+#include "messages/projector.h"
 
 class ProjectionThread;
 
@@ -159,6 +159,8 @@ struct XrdpUlalaca {
     struct source_info *si;
     
 public:
+    using Rect = ULIPCRect;
+    
     static const int RECT_SIZE_BYPASS_CREATE = 0;
 
     constexpr static const int ULALACA_VERSION = 1;
@@ -187,8 +189,10 @@ public:
     static int lib_mod_server_version_message(XrdpUlalaca *_this);
     
     /* session-broker related */
-    /** @deprecated */
-    inline std::string getSessionSocketPath(std::string &username);
+    inline std::string getSessionSocketPathUsingCredential(
+        const std::string &username,
+        const std::string &password
+    );
 
     /* paint related */
     inline int decideCopyRectSize() const;
