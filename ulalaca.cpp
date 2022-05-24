@@ -155,6 +155,11 @@ int XrdpUlalaca::lib_mod_signal(XrdpUlalaca *_this) {
 
 int XrdpUlalaca::lib_mod_end(XrdpUlalaca *_this) {
     LOG(LOG_LEVEL_INFO, "lib_mod_end() called");
+    
+    if (_this->_projectionThread != nullptr) {
+        _this->_projectionThread->stop();
+    }
+    
     return 0;
 }
 

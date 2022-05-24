@@ -35,11 +35,20 @@ void ProjectionThread::start() {
 }
 
 void ProjectionThread::stop() {
-    _ipcConnection.disconnect();
     _isTerminated = true;
+    
+    if (_projectorThread.joinable()) {
+        _projectorThread.join();
+    }
+    
+    _ipcConnection.disconnect();
 }
 
 void ProjectionThread::handleEvent(XrdpEvent &event) {
+    if (_isTerminated) {
+        return;
+    }
+    
     if (event.isKeyEvent()) {
         auto keycode = event.param3;
         auto cgKeycode = rdpKeycodeToCGKeycode(keycode);
