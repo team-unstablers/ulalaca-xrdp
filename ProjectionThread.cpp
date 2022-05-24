@@ -30,10 +30,12 @@ ProjectionThread::ProjectionThread(
 }
 
 void ProjectionThread::start() {
+    _ipcConnection.connect();
     _projectorThread = std::thread(&ProjectionThread::mainLoop, this);
 }
 
 void ProjectionThread::stop() {
+    _ipcConnection.disconnect();
     _isTerminated = true;
 }
 

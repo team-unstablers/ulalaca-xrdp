@@ -60,7 +60,12 @@ void IPCConnection::workerLoop() {
     std::unique_ptr<uint8_t> _currentReadTask;
     
     while (!_isWorkerTerminated) {
-        if (!_writeTasks.empty()) {
+        if (_writeTasks.empty() && _readTasks.empty()) {
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(1ms);
+        }
+    
+        while (!_writeTasks.empty()) {
             std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
             auto writeTask = std::move(_writeTasks.front());
             _writeTasks.pop();
@@ -70,7 +75,7 @@ void IPCConnection::workerLoop() {
             }
         }
         
-        if (!_readTasks.empty()) {
+        while (!_readTasks.empty()) {
             auto &readTask = _readTasks.front();
             
             auto &contentLength = readTask.first;
