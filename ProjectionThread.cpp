@@ -114,16 +114,17 @@ void ProjectionThread::handleEvent(XrdpEvent &event) {
                 });
                 return;
             }
-            
-            case XrdpEvent::MOUSE_WHEEL_DOWN: {
-                LOG(LOG_LEVEL_DEBUG, "TODO: WHEEL_DOWN (%d)", (int) event.param1);
-                /*
-                writeMessage(MessageType::OUT_MOUSE_WHEEL_EVENT, MouseWheelEvent {
-                    MouseButtonEvent::,
-                    MouseButtonEvent::BUTTON_RIGHT,
-                    0
+    
+            case XrdpEvent::MOUSE_WHEEL_UP: {
+                _ipcConnection.writeMessage(TYPE_EVENT_MOUSE_WHEEL, ULIPCMouseWheelEvent {
+                    0, -56, 0
                 });
-                 */
+                return;
+            }
+            case XrdpEvent::MOUSE_WHEEL_DOWN: {
+                _ipcConnection.writeMessage(TYPE_EVENT_MOUSE_WHEEL, ULIPCMouseWheelEvent {
+                    0, 56, 0
+                });
                 return;
             }
             
