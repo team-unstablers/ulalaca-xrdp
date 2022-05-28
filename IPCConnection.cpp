@@ -76,22 +76,19 @@ void IPCConnection::workerLoop() {
     size_t readPos = 0;
     std::unique_ptr<uint8_t> readBuffer;
 
-    pollfd pollFd;
-    pollFd.fd = _socket.descriptor();
-    pollFd.events = POLLIN | POLLOUT;
+    pollfd pollFd {
+        _socket.descriptor(),
+        POLLIN | POLLOUT,
+        0
+    };
 
     while (!_isWorkerTerminated) {
         if (poll(&pollFd, 1, 1) < 0) {
             throw SystemCallException(errno, "poll");
         }
 
-        bool canRead = pollFd.revents & POLLIN;
-        bool canWrite = pollFd.revents & POLLOUT;
-
-        if (pollFd.revents & (POLLERR | POLLHUP)) {
-            LOG(LOG_LEVEL_ERROR, "POLLERR | POLLHUP bit set; closing connection");
-            break;
-        }
+        bool canRead = (pollFd.revents & POLLIN) > 0;
+        bool canWrite = (pollFd.revents & POLLOUT) > 0;
 
         if (canWrite && !_writeTasks.empty()) {
             auto writeTask = std::move(_writeTasks.front());
@@ -119,8 +116,6 @@ void IPCConnection::workerLoop() {
                 readPos = 0;
                 readBuffer = std::unique_ptr<uint8_t>(new uint8_t[contentLength]);
             }
-
-            assert(sizeof readBuffer.get() == contentLength);
 
             int readForBytes = std::min(
                 (size_t) MAX_READ_SIZE,
@@ -150,6 +145,14 @@ void IPCConnection::workerLoop() {
                 readPos = 0;
             }
         }
-
+        
+        if (pollFd.revents & POLLHUP) {
+            LOG(LOG_LEVEL_WARNING, "POLLHUP bit set");
+        }
+    
+        if (pollFd.revents & POLLERR) {
+            LOG(LOG_LEVEL_ERROR, "POLLERR bit set; closing connection");
+            break;
+        }
     }
 }
