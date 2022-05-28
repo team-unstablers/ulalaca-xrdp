@@ -67,7 +67,7 @@ public:
     
 private:
     void workerLoop();
-    
+
     std::atomic_uint64_t _messageId;
     std::atomic_uint64_t _ackId;
     

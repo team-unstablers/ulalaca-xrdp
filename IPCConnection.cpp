@@ -6,6 +6,16 @@
 #include <config_ac.h>
 #endif
 
+#include <cassert>
+
+#include <fcntl.h>
+#include <poll.h>
+
+extern "C" {
+#include "parse.h"
+#include "defines.h"
+}
+
 #include "IPCConnection.hpp"
 
 IPCConnection::IPCConnection(std::string socketPath):
@@ -20,7 +30,14 @@ IPCConnection::IPCConnection(std::string socketPath):
 
 void IPCConnection::connect() {
     _socket.connect();
-    
+
+    // enable non-blocking io
+    auto flags = fcntl(_socket.descriptor(), F_GETFL, 0);
+    if (fcntl(_socket.descriptor(), F_SETFL, flags | O_NONBLOCK)) {
+        throw SystemCallException(errno, "fcntl");
+    }
+
+
     _workerThread = std::thread(&IPCConnection::workerLoop, this);
 }
 
@@ -55,62 +72,84 @@ void IPCConnection::write(const void *pointer, size_t size) {
 
 void IPCConnection::workerLoop() {
     const size_t MAX_READ_SIZE = 8192;
-    
-    size_t readBytes = 0;
-    std::unique_ptr<uint8_t> _currentReadTask;
-    
+
+    size_t readPos = 0;
+    std::unique_ptr<uint8_t> readBuffer;
+
+    pollfd pollFd;
+    pollFd.fd = _socket.descriptor();
+    pollFd.events = POLLIN | POLLOUT;
+
     while (!_isWorkerTerminated) {
-        if (_writeTasks.empty() && _readTasks.empty()) {
-            using namespace std::chrono_literals;
-            std::this_thread::sleep_for(1ms);
+        if (poll(&pollFd, 1, 1) < 0) {
+            throw SystemCallException(errno, "poll");
         }
-    
-        while (!_writeTasks.empty()) {
-            std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
+
+        bool canRead = pollFd.revents & POLLIN;
+        bool canWrite = pollFd.revents & POLLOUT;
+
+        if (pollFd.revents & (POLLERR | POLLHUP)) {
+            LOG(LOG_LEVEL_ERROR, "POLLERR | POLLHUP bit set; closing connection");
+            break;
+        }
+
+        if (canWrite && !_writeTasks.empty()) {
             auto writeTask = std::move(_writeTasks.front());
-            _writeTasks.pop();
-            
             if (_socket.write(writeTask.second.get(), writeTask.first) < 0) {
-                throw std::runtime_error("could not perform write()");
+                if (errno == EAGAIN) {
+                    continue;
+                }
+
+                throw SystemCallException(errno, "write");
+            }
+
+            {
+                std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
+                _writeTasks.pop();
             }
         }
-        
-        while (!_readTasks.empty()) {
+
+        if (canRead && !_readTasks.empty()) {
             auto &readTask = _readTasks.front();
-            
+
             auto &contentLength = readTask.first;
             auto &promise = readTask.second;
-            
-            if (_currentReadTask == nullptr) {
-                readBytes = 0;
-                _currentReadTask = std::unique_ptr<uint8_t>(
-                    new uint8_t[readTask.first]
-                );
+
+            if (readBuffer == nullptr) {
+                readPos = 0;
+                readBuffer = std::unique_ptr<uint8_t>(new uint8_t[contentLength]);
             }
-            
-            int bytes = std::min(
+
+            assert(sizeof readBuffer.get() == contentLength);
+
+            int readForBytes = std::min(
                 (size_t) MAX_READ_SIZE,
-                contentLength - readBytes
+                contentLength - readPos
             );
-            
-            size_t retval = _socket.read(_currentReadTask.get() + readBytes, bytes);
+
+            size_t retval = _socket.read(readBuffer.get() + readPos, readForBytes);
+
             if (retval < 0) {
-                throw std::runtime_error("failed to perform read()");
+                if (errno == EAGAIN) {
+                    continue;
+                } else {
+                    throw SystemCallException(errno, "read");
+                }
             }
-            
-            readBytes += retval;
-            
-            if (readBytes >= contentLength) {
-                promise.set_value(std::move(_currentReadTask));
-                
+
+            readPos += retval;
+
+            if (readPos >= contentLength) {
+                promise.set_value(std::move(readBuffer));
                 {
                     std::scoped_lock<std::mutex> scopedReadTasksLock(_readTasksLock);
                     _readTasks.pop();
                 }
-                
-                _currentReadTask = nullptr;
-                readBytes = 0;
+
+                readBuffer = nullptr;
+                readPos = 0;
             }
         }
+
     }
 }
