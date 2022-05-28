@@ -91,15 +91,17 @@ void IPCConnection::workerLoop() {
         bool canWrite = (pollFd.revents & POLLOUT) > 0;
 
         if (canWrite && !_writeTasks.empty()) {
-            auto writeTask = std::move(_writeTasks.front());
+            auto &writeTask = _writeTasks.front();
+            
             if (_socket.write(writeTask.second.get(), writeTask.first) < 0) {
                 if (errno == EAGAIN) {
                     continue;
                 }
-
-                throw SystemCallException(errno, "write");
+                
+                LOG(LOG_LEVEL_ERROR, "write() failed (errno=%d)", errno);
+                continue;
             }
-
+    
             {
                 std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
                 _writeTasks.pop();
