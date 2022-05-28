@@ -308,9 +308,13 @@ void XrdpUlalaca::addDirtyRect(Rect &rect) {
 }
 
 void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t height) {
-    LOG(LOG_LEVEL_TRACE, "painting: %d, %d", width, height);
-    
+    LOG(LOG_LEVEL_TRACE, "commiting screen update: %d, %d", width, height);
+
     std::scoped_lock<std::mutex> scopedCommitLock(_commitUpdateLock);
+
+    if (_sessionSize.width != width || _sessionSize.height != height) {
+        server_reset(this, width, height, _bpp);
+    }
     
     if ((_frameId - _ackFrameId) > 4) {
         _dirtyRects.clear();
@@ -322,7 +326,7 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
     }
     
     server_begin_update(this);
-    
+
     Rect screenRect = {0, 0, (short) width, (short) height};
     auto copyRectSize = decideCopyRectSize();
     
