@@ -83,7 +83,7 @@ void IPCConnection::workerLoop() {
     };
 
     while (!_isWorkerTerminated) {
-        if (poll(&pollFd, 1, 1) < 0) {
+        if (poll(&pollFd, 1, -1) < 0) {
             throw SystemCallException(errno, "poll");
         }
 
