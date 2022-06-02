@@ -304,6 +304,7 @@ std::unique_ptr<std::vector<XrdpUlalaca::Rect>> XrdpUlalaca::createCopyRects(
 }
 
 void XrdpUlalaca::addDirtyRect(Rect &rect) {
+    std::scoped_lock<std::mutex> scopedCommitLock(_commitUpdateLock);
     _dirtyRects.push_back(rect);
 }
 
@@ -314,11 +315,6 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
 
     if (_sessionSize.width != width || _sessionSize.height != height) {
         server_reset(this, width, height, _bpp);
-    }
-    
-    if ((_frameId - _ackFrameId) > 4) {
-        _dirtyRects.clear();
-        return;
     }
     
     if (_frameId > 0 && _dirtyRects.empty()) {
