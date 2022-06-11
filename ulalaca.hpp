@@ -229,6 +229,7 @@ private:
     std::unique_ptr<UnixSocket> _socket;
     std::unique_ptr<ProjectionThread> _projectionThread;
     
+    std::atomic_bool _fullInvalidate;
     std::mutex _commitUpdateLock;
     
     std::vector<Rect> _dirtyRects;

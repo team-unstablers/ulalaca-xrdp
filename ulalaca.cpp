@@ -48,6 +48,7 @@ XrdpUlalaca::XrdpUlalaca():
     
     si(nullptr),
     
+    _fullInvalidate(true),
     _sessionSize { 0, 0, 640, 480 },
     
     _bpp(0),
@@ -196,6 +197,7 @@ int XrdpUlalaca::lib_mod_server_monitor_resize(XrdpUlalaca *_this, int width, in
 }
 
 int XrdpUlalaca::lib_mod_server_monitor_full_invalidate(XrdpUlalaca *_this, int width, int height) {
+    _this->_fullInvalidate = true;
     return 0;
 }
 
@@ -328,7 +330,7 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
     Rect screenRect = {0, 0, (short) width, (short) height};
     auto copyRectSize = decideCopyRectSize();
     
-    if (_frameId > 0) {
+    if (_frameId > 0 || !_fullInvalidate) {
         auto copyRects = createCopyRects(_dirtyRects, copyRectSize);
         
         server_paint_rects(
@@ -352,6 +354,8 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
             width, height,
             0, (_frameId++ % INT32_MAX)
         );
+        
+        _fullInvalidate = false;
     }
     
     _dirtyRects.clear();
