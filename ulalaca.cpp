@@ -251,14 +251,15 @@ int XrdpUlalaca::decideCopyRectSize() const {
     bool isRFXCodec = _clientInfo.rfx_codec_id != 0;
     bool isJPEGCodec = _clientInfo.jpeg_codec_id != 0;
     bool isH264Codec = _clientInfo.h264_codec_id != 0;
+    bool isGFXH264Codec = _clientInfo.capture_code & 3;
+    
+    
+    if (isH264Codec || isGFXH264Codec) {
+        return RECT_SIZE_BYPASS_CREATE;
+    }
     
     if (isRFXCodec || isJPEGCodec) {
         return 64;
-    }
-    
-    if (isH264Codec) {
-        // return 256;
-        return RECT_SIZE_BYPASS_CREATE;
     }
 
     return RECT_SIZE_BYPASS_CREATE;
@@ -269,6 +270,7 @@ std::unique_ptr<std::vector<XrdpUlalaca::Rect>> XrdpUlalaca::createCopyRects(
     int rectSize
 ) const {
     auto blocks = std::make_unique<std::vector<Rect>>();
+    blocks->reserve(128);
 
     if (rectSize == RECT_SIZE_BYPASS_CREATE) {
         std::copy(dirtyRects.begin(), dirtyRects.end(), std::back_insert_iterator(*blocks));
