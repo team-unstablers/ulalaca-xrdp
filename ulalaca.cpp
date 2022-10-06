@@ -48,6 +48,7 @@ XrdpUlalaca::XrdpUlalaca():
     
     si(nullptr),
     
+    _fullInvalidate(true),
     _sessionSize { 0, 0, 640, 480 },
     
     _bpp(0),
@@ -196,6 +197,7 @@ int XrdpUlalaca::lib_mod_server_monitor_resize(XrdpUlalaca *_this, int width, in
 }
 
 int XrdpUlalaca::lib_mod_server_monitor_full_invalidate(XrdpUlalaca *_this, int width, int height) {
+    _this->_fullInvalidate = true;
     return 0;
 }
 
@@ -251,14 +253,15 @@ int XrdpUlalaca::decideCopyRectSize() const {
     bool isRFXCodec = _clientInfo.rfx_codec_id != 0;
     bool isJPEGCodec = _clientInfo.jpeg_codec_id != 0;
     bool isH264Codec = _clientInfo.h264_codec_id != 0;
+    bool isGFXH264Codec = _clientInfo.capture_code & 3;
+    
+    
+    if (isH264Codec || isGFXH264Codec) {
+        return RECT_SIZE_BYPASS_CREATE;
+    }
     
     if (isRFXCodec || isJPEGCodec) {
         return 64;
-    }
-    
-    if (isH264Codec) {
-        // return 256;
-        return RECT_SIZE_BYPASS_CREATE;
     }
 
     return RECT_SIZE_BYPASS_CREATE;
@@ -269,6 +272,7 @@ std::unique_ptr<std::vector<XrdpUlalaca::Rect>> XrdpUlalaca::createCopyRects(
     int rectSize
 ) const {
     auto blocks = std::make_unique<std::vector<Rect>>();
+    blocks->reserve(128);
 
     if (rectSize == RECT_SIZE_BYPASS_CREATE) {
         std::copy(dirtyRects.begin(), dirtyRects.end(), std::back_insert_iterator(*blocks));
@@ -326,7 +330,7 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
     Rect screenRect = {0, 0, (short) width, (short) height};
     auto copyRectSize = decideCopyRectSize();
     
-    if (_frameId > 0) {
+    if (_frameId > 0 || !_fullInvalidate) {
         auto copyRects = createCopyRects(_dirtyRects, copyRectSize);
         
         server_paint_rects(
@@ -350,6 +354,8 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
             width, height,
             0, (_frameId++ % INT32_MAX)
         );
+        
+        _fullInvalidate = false;
     }
     
     _dirtyRects.clear();
