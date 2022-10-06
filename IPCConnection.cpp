@@ -137,7 +137,7 @@ void IPCConnection::workerLoop() {
             readPos += retval;
 
             if (readPos >= contentLength) {
-                promise.set_value(std::move(readBuffer));
+                promise->set_value(std::move(readBuffer));
                 {
                     std::scoped_lock<std::mutex> scopedReadTasksLock(_readTasksLock);
                     _readTasks.pop();

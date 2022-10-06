@@ -50,17 +50,20 @@ public:
     std::unique_ptr<T, MallocFreeDeleter> read(size_t size) {
         assert(size != 0);
         
-        auto promise = std::promise<std::unique_ptr<uint8_t>>();
+        auto promise = std::make_shared<std::promise<std::unique_ptr<uint8_t>>>();
         {
             std::scoped_lock<std::mutex> scopedReadTasksLock(_readTasksLock);
             _readTasks.emplace(size, promise);
         }
-        auto pointer = promise.get_future().get();
-        
-        return std::move(std::unique_ptr<T, MallocFreeDeleter>(
-            reinterpret_cast<T *>(pointer.release()),
+        auto source = promise->get_future().get();
+        auto destination = std::unique_ptr<T, MallocFreeDeleter>(
+            (T *) malloc(size),
             free
-        ));
+        );
+        
+        std::memmove(destination.get(), source.get(), size);
+        
+        return std::move(destination);
     }
     
     void write(const void *pointer, size_t size);
@@ -79,7 +82,7 @@ private:
     std::mutex _readTasksLock;
     
     std::queue<std::pair<size_t, std::unique_ptr<uint8_t, MallocFreeDeleter>>> _writeTasks;
-    std::queue<std::pair<size_t, std::promise<std::unique_ptr<uint8_t>> &>> _readTasks;
+    std::queue<std::pair<size_t, std::shared_ptr<std::promise<std::unique_ptr<uint8_t>>> >> _readTasks;
 };
 
 
