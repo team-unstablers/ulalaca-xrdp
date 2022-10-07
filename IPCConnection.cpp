@@ -150,6 +150,11 @@ void IPCConnection::workerLoop() {
         
         if (pollFd.revents & POLLHUP) {
             LOG(LOG_LEVEL_WARNING, "POLLHUP bit set");
+
+            if (_readTasks.empty()) {
+                LOG(LOG_LEVEL_WARNING, "POLLHUP bit set; closing connection");
+                break;
+            }
         }
     
         if (pollFd.revents & POLLERR) {
