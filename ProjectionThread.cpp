@@ -153,6 +153,24 @@ void ProjectionThread::handleEvent(XrdpEvent &event) {
     }
 }
 
+void ProjectionThread::setViewport(ULIPCRect rect) {
+    _ipcConnection.writeMessage(TYPE_PROJECTION_SET_VIEWPORT, ULIPCProjectionSetViewport {
+        0, (uint16_t) rect.width, (uint16_t) rect.height, 0
+    });
+}
+
+void ProjectionThread::setOutputSuppression(bool isOutputSuppressed) {
+    if (isOutputSuppressed) {
+        _ipcConnection.writeMessage(TYPE_PROJECTION_STOP, ULIPCProjectionStop {
+            0
+        });
+    } else {
+        _ipcConnection.writeMessage(TYPE_PROJECTION_START, ULIPCProjectionStart {
+            0
+        });
+    }
+}
+
 void ProjectionThread::mainLoop() {
     while (!_isTerminated) {
         auto header = _ipcConnection.nextHeader();

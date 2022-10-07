@@ -91,6 +91,7 @@ void IPCConnection::workerLoop() {
         bool canWrite = (pollFd.revents & POLLOUT) > 0;
 
         if (canWrite && !_writeTasks.empty()) {
+            std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
             auto &writeTask = _writeTasks.front();
             
             if (_socket.write(writeTask.second.get(), writeTask.first) < 0) {
@@ -102,10 +103,7 @@ void IPCConnection::workerLoop() {
                 continue;
             }
     
-            {
-                std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
-                _writeTasks.pop();
-            }
+            _writeTasks.pop();
         }
 
         if (canRead && !_readTasks.empty()) {

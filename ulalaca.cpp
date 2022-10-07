@@ -139,6 +139,10 @@ int XrdpUlalaca::lib_mod_connect(XrdpUlalaca *_this) {
         );
     
         _this->_projectionThread->start();
+    
+        LOG(LOG_LEVEL_TRACE, "sessionSize: %d, %d", _this->_sessionSize.width, _this->_sessionSize.height);
+        _this->_projectionThread->setViewport(_this->_sessionSize);
+        _this->_projectionThread->setOutputSuppression(false);
     } catch (SystemCallException &e) {
         _this->serverMessage(e.what(), 0);
         return 1;
@@ -170,18 +174,17 @@ int XrdpUlalaca::lib_mod_session_change(XrdpUlalaca *_this, int, int) {
 
 int XrdpUlalaca::lib_mod_get_wait_objs(XrdpUlalaca *_this, tbus *read_objs, int *rcount, tbus *write_objs, int *wcount,
                                        int *timeout) {
-    
-    LOG(LOG_LEVEL_INFO, "lib_mod_get_wait_objs() called");
+    // LOG(LOG_LEVEL_INFO, "lib_mod_get_wait_objs() called");
     return 0;
 }
 
 int XrdpUlalaca::lib_mod_check_wait_objs(XrdpUlalaca *_this) {
-    LOG(LOG_LEVEL_INFO, "lib_mod_check_wait_objs() called");
+    // LOG(LOG_LEVEL_INFO, "lib_mod_check_wait_objs() called");
     return 0;
 }
 
 int XrdpUlalaca::lib_mod_frame_ack(XrdpUlalaca *_this, int flags, int frame_id) {
-    LOG(LOG_LEVEL_INFO, "lib_mod_frame_ack() called: %d", frame_id);
+    LOG(LOG_LEVEL_TRACE, "lib_mod_frame_ack() called: %d", frame_id);
     _this->_ackFrameId = frame_id;
     
     return 0;
@@ -255,13 +258,12 @@ int XrdpUlalaca::decideCopyRectSize() const {
     bool isH264Codec = _clientInfo.h264_codec_id != 0;
     bool isGFXH264Codec = _clientInfo.capture_code & 3;
     
+    if (isRFXCodec) {
+        return 64;
+    }
     
     if (isH264Codec || isGFXH264Codec) {
         return RECT_SIZE_BYPASS_CREATE;
-    }
-    
-    if (isRFXCodec || isJPEGCodec) {
-        return 64;
     }
 
     return RECT_SIZE_BYPASS_CREATE;
@@ -313,12 +315,15 @@ void XrdpUlalaca::addDirtyRect(Rect &rect) {
 }
 
 void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t height) {
-    LOG(LOG_LEVEL_TRACE, "commiting screen update: %d, %d", width, height);
+    LOG(LOG_LEVEL_TRACE, "updating screen: %d, %d", width, height);
 
-    std::scoped_lock<std::mutex> scopedCommitLock(_commitUpdateLock);
+    if (!_commitUpdateLock.try_lock()) {
+        _dirtyRects.clear();
+        return;
+    }
 
     if (_sessionSize.width != width || _sessionSize.height != height) {
-        server_reset(this, width, height, _bpp);
+        // server_reset(this, width, height, _bpp);
     }
     
     if (_frameId > 0 && _dirtyRects.empty()) {
@@ -346,6 +351,15 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
         auto dirtyRects = std::vector<Rect>{screenRect};
         auto copyRects = createCopyRects(dirtyRects, copyRectSize);
         
+        server_paint_rect(
+            this,
+            screenRect.x, screenRect.y,
+            screenRect.width, screenRect.height,
+            (char *) image,
+            screenRect.width, screenRect.height,
+            0, 0
+        );
+        
         server_paint_rects(
             this,
             dirtyRects.size(), reinterpret_cast<short *>(dirtyRects.data()),
@@ -360,6 +374,8 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
     
     _dirtyRects.clear();
     server_end_update(this);
+
+    _commitUpdateLock.unlock();
 }
 
 void XrdpUlalaca::calculateSessionSize() {

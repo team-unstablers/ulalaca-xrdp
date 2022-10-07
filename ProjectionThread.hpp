@@ -30,6 +30,9 @@ public:
     void stop();
     
     void handleEvent(XrdpEvent &event);
+    void setViewport(ULIPCRect rect);
+    
+    void setOutputSuppression(bool isOutputSuppressed);
 private:
     void mainLoop();
     
