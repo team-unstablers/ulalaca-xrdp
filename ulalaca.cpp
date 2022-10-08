@@ -252,17 +252,32 @@ std::string XrdpUlalaca::getSessionSocketPathUsingCredential(
     return socketPath;
 }
 
+bool XrdpUlalaca::isRFXCodec() const {
+    return _clientInfo.rfx_codec_id != 0;
+}
+
+bool XrdpUlalaca::isJPEGCodec() const {
+    return _clientInfo.jpeg_codec_id != 0;
+}
+
+bool XrdpUlalaca::isH264Codec() const {
+    return _clientInfo.h264_codec_id != 0;
+}
+
+bool XrdpUlalaca::isGFXH264Codec() const {
+    return _clientInfo.capture_code & 3;
+}
+
+bool XrdpUlalaca::isRawBitmap() const {
+    return !(isRFXCodec() || isJPEGCodec() || isH264Codec() || isGFXH264Codec());
+}
+
 int XrdpUlalaca::decideCopyRectSize() const {
-    bool isRFXCodec = _clientInfo.rfx_codec_id != 0;
-    bool isJPEGCodec = _clientInfo.jpeg_codec_id != 0;
-    bool isH264Codec = _clientInfo.h264_codec_id != 0;
-    bool isGFXH264Codec = _clientInfo.capture_code & 3;
-    
-    if (isRFXCodec) {
+    if (isRFXCodec()) {
         return 64;
     }
     
-    if (isH264Codec || isGFXH264Codec) {
+    if (isH264Codec() || isGFXH264Codec()) {
         return RECT_SIZE_BYPASS_CREATE;
     }
 
@@ -315,7 +330,7 @@ void XrdpUlalaca::addDirtyRect(Rect &rect) {
 }
 
 void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t height) {
-    LOG(LOG_LEVEL_TRACE, "updating screen: %d, %d", width, height);
+    LOG(LOG_LEVEL_DEBUG, "updating screen: %d, %d", width, height);
 
     if (!_commitUpdateLock.try_lock()) {
         _dirtyRects.clear();
@@ -351,23 +366,25 @@ void XrdpUlalaca::commitUpdate(const uint8_t *image, int32_t width, int32_t heig
         auto dirtyRects = std::vector<Rect>{screenRect};
         auto copyRects = createCopyRects(dirtyRects, copyRectSize);
         
-        server_paint_rect(
-            this,
-            screenRect.x, screenRect.y,
-            screenRect.width, screenRect.height,
-            (char *) image,
-            screenRect.width, screenRect.height,
-            0, 0
-        );
-        
-        server_paint_rects(
-            this,
-            dirtyRects.size(), reinterpret_cast<short *>(dirtyRects.data()),
-            copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
-            (char *) image,
-            width, height,
-            0, (_frameId++ % INT32_MAX)
-        );
+        if (isRawBitmap()) {
+            server_paint_rect(
+                this,
+                screenRect.x, screenRect.y,
+                screenRect.width, screenRect.height,
+                (char *) image,
+                screenRect.width, screenRect.height,
+                0, 0
+            );
+        } else {
+            server_paint_rects(
+                this,
+                dirtyRects.size(), reinterpret_cast<short *>(dirtyRects.data()),
+                copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
+                (char *) image,
+                width, height,
+                0, (_frameId++ % INT32_MAX)
+            );
+        }
         
         _fullInvalidate = false;
     }

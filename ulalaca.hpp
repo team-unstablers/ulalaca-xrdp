@@ -202,9 +202,16 @@ public:
     void commitUpdate(const uint8_t *image, int32_t width, int32_t height);
 
     void calculateSessionSize();
+    
+    inline bool isRFXCodec() const;
+    inline bool isJPEGCodec() const;
+    inline bool isH264Codec() const;
+    inline bool isGFXH264Codec() const;
+    inline bool isRawBitmap() const;
 
     /* utility methods / lib_server_* wrappers */
     void serverMessage(const char *message, int code);
+    
 private:
     int _error = 0;
 
