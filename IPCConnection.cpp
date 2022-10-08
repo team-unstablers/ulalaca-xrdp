@@ -58,8 +58,6 @@ void IPCConnection::write(const void *pointer, size_t size) {
     assert(pointer != nullptr);
     assert(size > 0);
     
-    std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
-    
     std::unique_ptr<uint8_t, MallocFreeDeleter> data(
         (uint8_t *) malloc(size),
         free
@@ -67,7 +65,10 @@ void IPCConnection::write(const void *pointer, size_t size) {
     
     std::memcpy(data.get(), pointer, size);
     
-    _writeTasks.emplace(size, std::move(data));
+    {
+        std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
+        _writeTasks.emplace(size, std::move(data));
+    }
 }
 
 void IPCConnection::workerLoop() {
@@ -91,8 +92,11 @@ void IPCConnection::workerLoop() {
         bool canWrite = (pollFd.revents & POLLOUT) > 0;
 
         if (canWrite && !_writeTasks.empty()) {
-            std::scoped_lock<std::mutex> scopedWriteTasksLock(_writeTasksLock);
-            auto &writeTask = _writeTasks.front();
+            _writeTasksLock.lock();
+            auto writeTask = std::move(_writeTasks.front());
+            _writeTasks.pop();
+            _writeTasksLock.unlock();
+            
             
             if (_socket.write(writeTask.second.get(), writeTask.first) < 0) {
                 if (errno == EAGAIN) {
@@ -102,8 +106,6 @@ void IPCConnection::workerLoop() {
                 LOG(LOG_LEVEL_ERROR, "write() failed (errno=%d)", errno);
                 continue;
             }
-    
-            _writeTasks.pop();
         }
 
         if (canRead && !_readTasks.empty()) {
