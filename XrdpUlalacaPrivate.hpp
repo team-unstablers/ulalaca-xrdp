@@ -25,7 +25,7 @@ extern "C" {
 #include "ProjectionTarget.hpp"
 
 struct XrdpUlalaca;
-class ProjectionThread;
+class ProjectorClient;
 
 class XrdpUlalacaPrivate: public ProjectionTarget {
 public:
@@ -106,7 +106,7 @@ private:
     xrdp_client_info _clientInfo;
 
     std::unique_ptr<UnixSocket> _socket;
-    std::unique_ptr<ProjectionThread> _projectionThread;
+    std::unique_ptr<ProjectorClient> _projectionThread;
 
     std::atomic_bool _fullInvalidate;
     std::mutex _commitUpdateLock;

@@ -18,13 +18,13 @@
 #include "ProjectionTarget.hpp"
 
 
-class ProjectionThread {
+class ProjectorClient {
 public:
-    explicit ProjectionThread(
+    explicit ProjectorClient(
         ProjectionTarget &target,
         const std::string &socketPath
     );
-    ProjectionThread(ProjectionThread &) = delete;
+    ProjectorClient(ProjectorClient &) = delete;
     
     void start();
     void stop();

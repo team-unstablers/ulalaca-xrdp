@@ -29,8 +29,8 @@ libulalaca_la_SOURCES = \
   IPCConnection.cpp \
   SessionBrokerClient.hpp \
   SessionBrokerClient.cpp \
-  ProjectionThread.hpp \
-  ProjectionThread.cpp \
+  ProjectorClient.hpp \
+  ProjectorClient.cpp \
   KeycodeMap.cpp \
   XrdpUlalacaPrivate.cpp \
   XrdpUlalacaPrivate.xrdpmodule.cpp \

@@ -6,20 +6,15 @@
 #include <config_ac.h>
 #endif
 
-#include <algorithm>
-#include <chrono>
 #include <functional>
 #include <iostream>
 #include <sstream>
-#include <string>
 
-#include "messages/broker.h"
 #include "ulalaca.hpp"
 
 #include "XrdpUlalacaPrivate.hpp"
-#include "SocketStream.hpp"
 
-#include "ProjectionThread.hpp"
+#include "ProjectorClient.hpp"
 
 
 

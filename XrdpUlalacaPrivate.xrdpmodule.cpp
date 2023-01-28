@@ -2,7 +2,7 @@
 
 #include "ulalaca.hpp"
 #include "SessionBrokerClient.hpp"
-#include "ProjectionThread.hpp"
+#include "ProjectorClient.hpp"
 
 int XrdpUlalacaPrivate::libModStart(int width, int height, int bpp) {
     // #517eb9

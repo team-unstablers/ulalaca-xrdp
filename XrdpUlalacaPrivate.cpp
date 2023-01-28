@@ -4,7 +4,7 @@
 
 #include "XrdpUlalacaPrivate.hpp"
 
-#include "ProjectionThread.hpp"
+#include "ProjectorClient.hpp"
 
 XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
     _mod(mod),
@@ -52,7 +52,7 @@ void XrdpUlalacaPrivate::attachToSession(std::string sessionPath) {
         return;
     }
 
-    _projectionThread = std::make_unique<ProjectionThread>(
+    _projectionThread = std::make_unique<ProjectorClient>(
         *this, sessionPath
     );
 

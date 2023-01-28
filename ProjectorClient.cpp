@@ -15,10 +15,10 @@ extern "C" {
 #include "xrdp_client_info.h"
 }
 
-#include "ProjectionThread.hpp"
+#include "ProjectorClient.hpp"
 #include "KeycodeMap.hpp"
 
-ProjectionThread::ProjectionThread(
+ProjectorClient::ProjectorClient(
     ProjectionTarget &target,
     const std::string &socketPath
 ):
@@ -29,12 +29,12 @@ ProjectionThread::ProjectionThread(
 
 }
 
-void ProjectionThread::start() {
+void ProjectorClient::start() {
     _ipcConnection.connect();
-    _projectorThread = std::thread(&ProjectionThread::mainLoop, this);
+    _projectorThread = std::thread(&ProjectorClient::mainLoop, this);
 }
 
-void ProjectionThread::stop() {
+void ProjectorClient::stop() {
     _isTerminated = true;
     
     if (_projectorThread.joinable()) {
@@ -44,7 +44,7 @@ void ProjectionThread::stop() {
     _ipcConnection.disconnect();
 }
 
-void ProjectionThread::handleEvent(XrdpEvent &event) {
+void ProjectorClient::handleEvent(XrdpEvent &event) {
     if (_isTerminated) {
         return;
     }
@@ -153,13 +153,13 @@ void ProjectionThread::handleEvent(XrdpEvent &event) {
     }
 }
 
-void ProjectionThread::setViewport(ULIPCRect rect) {
+void ProjectorClient::setViewport(ULIPCRect rect) {
     _ipcConnection.writeMessage(TYPE_PROJECTION_SET_VIEWPORT, ULIPCProjectionSetViewport {
         0, (uint16_t) rect.width, (uint16_t) rect.height, 0
     });
 }
 
-void ProjectionThread::setOutputSuppression(bool isOutputSuppressed) {
+void ProjectorClient::setOutputSuppression(bool isOutputSuppressed) {
     if (isOutputSuppressed) {
         _ipcConnection.writeMessage(TYPE_PROJECTION_STOP, ULIPCProjectionStop {
             0
@@ -171,7 +171,7 @@ void ProjectionThread::setOutputSuppression(bool isOutputSuppressed) {
     }
 }
 
-void ProjectionThread::mainLoop() {
+void ProjectorClient::mainLoop() {
     while (!_isTerminated) {
         auto header = _ipcConnection.nextHeader();
         
