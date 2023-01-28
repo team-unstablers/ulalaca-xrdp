@@ -15,17 +15,13 @@
 
 #include "messages/broker.h"
 #include "ulalaca.hpp"
+
+#include "XrdpUlalacaPrivate.hpp"
 #include "SocketStream.hpp"
 
 #include "ProjectionThread.hpp"
 
-bool XrdpEvent::isKeyEvent() const {
-    return type == KEY_DOWN || type == KEY_UP;
-}
 
-bool XrdpEvent::isMouseEvent() const {
-    return type >= MOUSE_MOVE && type <= MOUSE_UNKNOWN_2;
-}
 
 XrdpUlalaca::XrdpUlalaca():
     size(sizeof(XrdpUlalaca)),
@@ -47,165 +43,66 @@ XrdpUlalaca::XrdpUlalaca():
     mod_server_version_message(&lib_mod_server_version_message),
     
     si(nullptr),
-    
-    _fullInvalidate(true),
-    _sessionSize { 0, 0, 640, 480 },
-    
-    _bpp(0),
-    _encodingsMask(0),
-    _keyLayout(0),
-    _delayMs(0)
+
+    _impl(std::make_unique<XrdpUlalacaPrivate>(this))
 {
 }
 
 int XrdpUlalaca::lib_mod_event(XrdpUlalaca *_this, int type, long arg1, long arg2, long arg3, long arg4) {
-    LOG(LOG_LEVEL_DEBUG, "lib_mod_event() called: %d", type);
-    
-    XrdpEvent event {
-        (XrdpEvent::Type) type,
-        arg1, arg2, arg3, arg4
-    };
-    
-    if (_this->_projectionThread != nullptr) {
-        _this->_projectionThread->handleEvent(event);
-    }
-    
-    return 0;
+    return _this->_impl->libModEvent(type, arg1, arg2, arg3, arg4);
 }
 
 int XrdpUlalaca::lib_mod_start(XrdpUlalaca *_this, int width, int height, int bpp) {
-    constexpr const unsigned int BACKGROUND_COLOR = 0xb97e51;
-
-    _this->_screenLayouts.clear();
-    _this->_screenLayouts.emplace_back(Rect {
-        0, 0, (short) width, (short) height
-    });
-    _this->calculateSessionSize();
-
-
-    _this->server_begin_update(_this);
-    _this->server_set_fgcolor(_this, (int) BACKGROUND_COLOR);
-    _this->server_fill_rect(_this, 0, 0, width, height);
-    _this->server_end_update(_this);
-    
-    _this->_bpp = bpp;
-    // _this->updateBpp(bpp);
-    
-    return 0;
+    return _this->_impl->libModStart(width, height, bpp);
 }
 
-int XrdpUlalaca::lib_mod_set_param(XrdpUlalaca *_this, const char *_name, const char *_value) {
-    std::string name(_name);
-    std::string value(_value);
-    
-    if (name == "username") {
-        _this->_username = value;
-    } else if (name == "password") {
-        _this->_password = value;
-    } else if (name == "ip") {
-        _this->_ip = value;
-    } else if (name == "port") {
-        _this->_port = value;
-    } else if (name == "keylayout") {
-        _this->_keyLayout = std::stoi(value);
-    } else if (name == "delay_ms") {
-        _this->_delayMs = std::stoi(value);
-    } else if (name == "guid") {
-        auto *_guid = reinterpret_cast<const guid *>(_value);
-        _this->_guid = *_guid;
-    } else if (name == "disabled_encodings_mask") {
-        _this->_encodingsMask = ~std::stoi(value);
-    } else if (name == "client_info") {
-        auto *clientInfo = reinterpret_cast<const xrdp_client_info *>(_value);
-        _this->_clientInfo = *clientInfo;
-    }
-    
-    return 0;
+int XrdpUlalaca::lib_mod_set_param(XrdpUlalaca *_this, const char *name, const char *value) {
+    return _this->_impl->libModSetParam(name, value);
 }
 
 int XrdpUlalaca::lib_mod_connect(XrdpUlalaca *_this) {
-    try {
-        std::string socketPath = _this->getSessionSocketPathUsingCredential(
-            _this->_username, _this->_password
-        );
-        _this->_password.clear();
-        
-        if (socketPath.empty()) {
-            return 1;
-        }
-    
-        _this->_projectionThread = std::make_unique<ProjectionThread>(
-            *_this, socketPath
-        );
-    
-        _this->_projectionThread->start();
-    
-        LOG(LOG_LEVEL_TRACE, "sessionSize: %d, %d", _this->_sessionSize.width, _this->_sessionSize.height);
-        _this->_projectionThread->setViewport(_this->_sessionSize);
-        _this->_projectionThread->setOutputSuppression(false);
-    } catch (SystemCallException &e) {
-        _this->serverMessage(e.what(), 0);
-        return 1;
-    }
-
-    _this->serverMessage("welcome to the fantasy zone, get ready!", 0);
-    
-    return 0;
+    return _this->_impl->libModConnect();
 }
 
 int XrdpUlalaca::lib_mod_signal(XrdpUlalaca *_this) {
-    LOG(LOG_LEVEL_INFO, "lib_mod_signal() called");
-    return 0;
+    return _this->_impl->libModSignal();
 }
 
 int XrdpUlalaca::lib_mod_end(XrdpUlalaca *_this) {
-    LOG(LOG_LEVEL_INFO, "lib_mod_end() called");
-    
-    if (_this->_projectionThread != nullptr) {
-        _this->_projectionThread->stop();
-    }
-    
-    return 0;
+    return _this->_impl->libModEnd();
 }
 
-int XrdpUlalaca::lib_mod_session_change(XrdpUlalaca *_this, int, int) {
-    return 0;
+int XrdpUlalaca::lib_mod_session_change(XrdpUlalaca *_this, int arg1, int arg2) {
+    return _this->_impl->libModSessionChange(arg1, arg2);
 }
 
 int XrdpUlalaca::lib_mod_get_wait_objs(XrdpUlalaca *_this, tbus *read_objs, int *rcount, tbus *write_objs, int *wcount,
                                        int *timeout) {
-    // LOG(LOG_LEVEL_INFO, "lib_mod_get_wait_objs() called");
-    return 0;
+    return _this->_impl->libModGetWaitObjs(read_objs, rcount, write_objs, wcount, timeout);
 }
 
 int XrdpUlalaca::lib_mod_check_wait_objs(XrdpUlalaca *_this) {
-    // LOG(LOG_LEVEL_INFO, "lib_mod_check_wait_objs() called");
-    return 0;
+    return _this->_impl->libModCheckWaitObjs();
 }
 
 int XrdpUlalaca::lib_mod_frame_ack(XrdpUlalaca *_this, int flags, int frame_id) {
-    LOG(LOG_LEVEL_TRACE, "lib_mod_frame_ack() called: %d", frame_id);
-    _this->_ackFrameId = frame_id;
-    
-    return 0;
+    return _this->_impl->libModFrameAck(flags, frame_id);
 }
 
 int XrdpUlalaca::lib_mod_suppress_output(XrdpUlalaca *_this, int suppress, int left, int top, int right, int bottom) {
-    LOG(LOG_LEVEL_INFO, "lib_mod_suppress_output() called");
-    return 0;
+    return _this->_impl->libModSuppressOutput(suppress, left, top, right, bottom);
 }
 
 int XrdpUlalaca::lib_mod_server_monitor_resize(XrdpUlalaca *_this, int width, int height) {
-    return 0;
+    return _this->_impl->libModServerMonitorResize(width, height);
 }
 
 int XrdpUlalaca::lib_mod_server_monitor_full_invalidate(XrdpUlalaca *_this, int width, int height) {
-    _this->_fullInvalidate = true;
-    return 0;
+    return _this->_impl->libModServerMonitorFullInvalidate(width, height);
 }
 
 int XrdpUlalaca::lib_mod_server_version_message(XrdpUlalaca *_this) {
-    return 0;
+    return _this->_impl->libModServerVersionMessage();
 }
 
 std::string XrdpUlalaca::getSessionSocketPathUsingCredential(

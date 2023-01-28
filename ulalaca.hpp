@@ -24,7 +24,9 @@ extern "C" {
 
 #include "messages/projector.h"
 
-class ProjectionThread;
+constexpr static const int ULALACA_VERSION = 1;
+
+class XrdpUlalacaPrivate;
 
 extern "C" {
 
@@ -157,15 +159,8 @@ struct XrdpUlalaca {
     tintptr wm; /* struct xrdp_wm* */
     tintptr painter;
     struct source_info *si;
-    
-public:
-    using Rect = ULIPCRect;
-    
-    static const int RECT_SIZE_BYPASS_CREATE = 0;
 
-    constexpr static const int ULALACA_VERSION = 1;
-    constexpr static const int NO_ERROR = 0;
-    
+public:
     explicit XrdpUlalaca();
     
     static int lib_mod_start(XrdpUlalaca *_this, int width, int height, int bpp);
@@ -187,59 +182,9 @@ public:
     static int lib_mod_server_monitor_full_invalidate(XrdpUlalaca *_this,
                                               int width, int height);
     static int lib_mod_server_version_message(XrdpUlalaca *_this);
-    
-    /* session-broker related */
-    inline std::string getSessionSocketPathUsingCredential(
-        const std::string &username,
-        const std::string &password
-    );
 
-    /* paint related */
-    inline int decideCopyRectSize() const;
-    inline std::unique_ptr<std::vector<Rect>> createCopyRects(std::vector<Rect> &dirtyRects, int rectSize) const;
-
-    void addDirtyRect(Rect &rect);
-    void commitUpdate(const uint8_t *image, int32_t width, int32_t height);
-
-    void calculateSessionSize();
-    
-    inline bool isRFXCodec() const;
-    inline bool isJPEGCodec() const;
-    inline bool isH264Codec() const;
-    inline bool isGFXH264Codec() const;
-    inline bool isRawBitmap() const;
-
-    /* utility methods / lib_server_* wrappers */
-    void serverMessage(const char *message, int code);
-    
 private:
-    int _error = 0;
-
-    Rect _sessionSize;
-    std::vector<Rect> _screenLayouts;
-
-    int _bpp;
-    
-    std::atomic_int64_t _frameId = 0;
-    std::atomic_int64_t _ackFrameId = 0;
-    
-    std::string _username;
-    std::string _password;
-    std::string _ip;
-    std::string _port;
-    int _keyLayout;
-    int _delayMs;
-    guid _guid;
-    int _encodingsMask;
-    xrdp_client_info _clientInfo;
-    
-    std::unique_ptr<UnixSocket> _socket;
-    std::unique_ptr<ProjectionThread> _projectionThread;
-    
-    std::atomic_bool _fullInvalidate;
-    std::mutex _commitUpdateLock;
-    
-    std::vector<Rect> _dirtyRects;
+    std::unique_ptr<XrdpUlalacaPrivate> _impl;
 };
 
 };

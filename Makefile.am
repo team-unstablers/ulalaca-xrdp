@@ -19,6 +19,7 @@ libulalaca_la_SOURCES = \
   SystemCallException.cpp \
   SystemCallException.hpp \
   XrdpEvent.hpp \
+  XrdpEvent.cpp \
   XrdpTransport.hpp \
   XrdpTransport.cpp \
   XrdpStream.hpp \
@@ -29,6 +30,9 @@ libulalaca_la_SOURCES = \
   ProjectionThread.hpp \
   ProjectionThread.cpp \
   KeycodeMap.cpp \
+  XrdpUlalacaPrivate.cpp \
+  XrdpUlalacaPrivate.xrdpmodule.cpp \
+  XrdpUlalacaPrivate.hpp \
   ulalaca.cpp \
   ulalaca.hpp
 
