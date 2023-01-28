@@ -57,8 +57,8 @@ int XrdpUlalacaPrivate::libModEvent(int type, long arg1, long arg2, long arg3, l
             arg1, arg2, arg3, arg4
     };
 
-    if (_projectionThread != nullptr) {
-        _projectionThread->handleEvent(event);
+    if (_projectorClient != nullptr) {
+        _projectorClient->handleEvent(event);
     }
 
     return 0;
@@ -72,8 +72,8 @@ int XrdpUlalacaPrivate::libModSignal() {
 int XrdpUlalacaPrivate::libModEnd() {
     LOG(LOG_LEVEL_INFO, "lib_mod_end() called");
 
-    if (_projectionThread != nullptr) {
-        _projectionThread->stop();
+    if (_projectorClient != nullptr) {
+        _projectorClient->stop();
     }
 
     return 0;

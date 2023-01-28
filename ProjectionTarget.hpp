@@ -16,6 +16,7 @@ public:
     
     virtual void commitUpdate(
         const uint8_t *image,
+        size_t size,
         int32_t width, int32_t height
     ) = 0;
 };

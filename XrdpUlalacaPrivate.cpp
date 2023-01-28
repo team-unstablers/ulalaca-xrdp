@@ -7,37 +7,43 @@
 #include "ProjectorClient.hpp"
 
 XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
-    _mod(mod),
-    _error(0),
+        _mod(mod),
+        _error(0),
 
-    _sessionSize(),
-    _screenLayouts(),
+        _sessionSize(),
+        _screenLayouts(),
 
-    _bpp(0),
+        _bpp(0),
 
-    _frameId(0),
-    _ackFrameId(0),
+        _frameId(0),
+        _ackFrameId(0),
 
-    _username(),
-    _password(),
-    _ip(),
-    _port(),
+        _username(),
+        _password(),
+        _ip(),
+        _port(),
 
-    _keyLayout(0),
-    _delayMs(0),
-    _guid(),
-    _encodingsMask(0),
-    _clientInfo(),
+        _keyLayout(0),
+        _delayMs(0),
+        _guid(),
+        _encodingsMask(0),
+        _clientInfo(),
 
-    _socket(),
-    _projectionThread(),
+        _socket(),
+        _projectorClient(),
 
-    _fullInvalidate(false),
-    _commitUpdateLock(),
+        _fullInvalidate(false),
+        _commitUpdateLock(),
 
-    _dirtyRects()
+        _dirtyRects(std::make_shared<std::vector<ULIPCRect>>())
 {
+}
 
+XrdpUlalacaPrivate::~XrdpUlalacaPrivate() {
+    _isUpdateThreadRunning = false;
+    if (_updateThread->joinable()) {
+        _updateThread->join();
+    }
 }
 
 void XrdpUlalacaPrivate::serverMessage(const char *message, int code) {
@@ -46,21 +52,25 @@ void XrdpUlalacaPrivate::serverMessage(const char *message, int code) {
 }
 
 void XrdpUlalacaPrivate::attachToSession(std::string sessionPath) {
-    if (_projectionThread != nullptr) {
+    if (_projectorClient != nullptr) {
         LOG(LOG_LEVEL_ERROR, "already attached to session");
         // TODO: throw runtime_error
         return;
     }
 
-    _projectionThread = std::make_unique<ProjectorClient>(
+    _projectorClient = std::make_unique<ProjectorClient>(
         *this, sessionPath
     );
 
-    _projectionThread->start();
+    _projectorClient->start();
+    _isUpdateThreadRunning = true;
+    _updateThread = std::make_unique<std::thread>(
+        &XrdpUlalacaPrivate::updateThreadLoop, this
+    );
 
     LOG(LOG_LEVEL_TRACE, "sessionSize: %d, %d", _sessionSize.width, _sessionSize.height);
-    _projectionThread->setViewport(_sessionSize);
-    _projectionThread->setOutputSuppression(false);
+    _projectorClient->setViewport(_sessionSize);
+    _projectorClient->setOutputSuppression(false);
 }
 
 int XrdpUlalacaPrivate::decideCopyRectSize() const {
@@ -81,7 +91,7 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
     int rectSize
 ) const {
     auto blocks = std::make_unique<std::vector<ULIPCRect>>();
-    blocks->reserve(128);
+    blocks->reserve((_sessionSize.width * _sessionSize.height) / (rectSize * rectSize));
 
     if (rectSize == RECT_SIZE_BYPASS_CREATE) {
         std::copy(dirtyRects.begin(), dirtyRects.end(), std::back_insert_iterator(*blocks));
@@ -108,7 +118,7 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
                 short x = baseX + (rectSize * i);
                 short y = baseY + (rectSize * j);
 
-                blocks->push_back(ULIPCRect {x, y, (short) rectSize, (short) rectSize });
+                blocks->emplace_back(ULIPCRect {x, y, (short) rectSize, (short) rectSize });
             }
         }
     }
@@ -117,74 +127,110 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
 }
 
 void XrdpUlalacaPrivate::addDirtyRect(ULIPCRect &rect) {
-    std::scoped_lock<std::mutex> scopedCommitLock(_commitUpdateLock);
-    _dirtyRects.push_back(rect);
+    _dirtyRects->push_back(rect);
 }
 
-void XrdpUlalacaPrivate::commitUpdate(const uint8_t *image, int32_t width, int32_t height) {
-    LOG(LOG_LEVEL_DEBUG, "updating screen: %d, %d", width, height);
+void XrdpUlalacaPrivate::commitUpdate(const uint8_t *image, size_t size, int32_t width, int32_t height) {
+    std::shared_ptr<uint8_t> tmp((uint8_t *) g_malloc(size, 0), g_free);
+    memmove(tmp.get(), image, size);
 
-    if (!_commitUpdateLock.try_lock()) {
-        _dirtyRects.clear();
-        return;
-    }
+    auto dirtyRects = _dirtyRects;
+    _dirtyRects = std::make_shared<std::vector<ULIPCRect>>();
 
-    if (_sessionSize.width != width || _sessionSize.height != height) {
-        // server_reset(this, width, height, _bpp);
-    }
+    auto now = std::chrono::steady_clock::now();
+    _updateQueue.emplace(ScreenUpdate {
+            std::chrono::duration<double>(now.time_since_epoch()).count(),
+            tmp, size, width, height, dirtyRects
+    });
+}
 
-    if (_frameId > 0 && _dirtyRects.empty()) {
-        return;
-    }
+void XrdpUlalacaPrivate::updateThreadLoop() {
+    while (_isUpdateThreadRunning) {
+        while (_updateQueue.empty()) {
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(4ms);
+        }
 
-    _mod->server_begin_update(_mod);
+        if (!_isUpdateThreadRunning) {
+            break;
+        }
 
-    ULIPCRect screenRect {0, 0, (short) width, (short) height};
-    auto copyRectSize = decideCopyRectSize();
+        _commitUpdateLock.lock();
+        auto update = std::move(_updateQueue.front());
+        _updateQueue.pop();
+        _commitUpdateLock.unlock();
 
-    if (_frameId > 0 || !_fullInvalidate) {
-        auto copyRects = createCopyRects(_dirtyRects, copyRectSize);
 
-        _mod->server_paint_rects(
-                _mod,
-                _dirtyRects.size(), reinterpret_cast<short *>(_dirtyRects.data()),
-                copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
-                (char *) image,
-                width, height,
-                0, (_frameId++ % INT32_MAX)
-        );
-    } else {
-        // paint entire screen
-        auto dirtyRects = std::vector<ULIPCRect> { screenRect } ;
-        auto copyRects = createCopyRects(dirtyRects, copyRectSize);
+        auto now = std::chrono::steady_clock::now();
+        auto tdelta = std::chrono::duration<double>(now.time_since_epoch()).count() - update.timestamp;
 
-        if (isRawBitmap()) {
-            _mod->server_paint_rect(
-                    _mod,
-                    screenRect.x, screenRect.y,
-                    screenRect.width, screenRect.height,
-                    (char *) image,
-                    screenRect.width, screenRect.height,
-                    0, 0
-            );
-        } else {
+        if (tdelta > 1.0 / 15.0 || _updateQueue.size() > 4) {
+            LOG(LOG_LEVEL_INFO, "skipping frame (tdelta = %.4f)", tdelta);
+            continue;
+        }
+
+        auto width = update.width;
+        auto height = update.height;
+        auto dirtyRects = update.dirtyRects;
+        auto image = update.image;
+
+        // LOG(LOG_LEVEL_TRACE, "updating screen: [%.4f] %d, %d", update.timestamp, update.width, update.height);
+
+        if (_sessionSize.width != update.width || _sessionSize.height != update.height) {
+            // server_reset(this, width, height, _bpp);
+        }
+
+        if (_frameId > 0 && dirtyRects->empty()) {
+            continue;
+        }
+
+        _mod->server_begin_update(_mod);
+
+        ULIPCRect screenRect {0, 0, (short) width, (short) height};
+        auto copyRectSize = decideCopyRectSize();
+
+        if (_frameId > 0 || !_fullInvalidate) {
+            auto copyRects = createCopyRects(*dirtyRects, copyRectSize);
+
             _mod->server_paint_rects(
                     _mod,
-                    dirtyRects.size(), reinterpret_cast<short *>(dirtyRects.data()),
+                    dirtyRects->size(), reinterpret_cast<short *>(dirtyRects->data()),
                     copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
-                    (char *) image,
+                    (char *) image.get(),
                     width, height,
                     0, (_frameId++ % INT32_MAX)
             );
+        } else {
+            // paint entire screen
+            auto dirtyRects = std::vector<ULIPCRect> { screenRect } ;
+            auto copyRects = createCopyRects(dirtyRects, copyRectSize);
+
+            if (isRawBitmap()) {
+                _mod->server_paint_rect(
+                        _mod,
+                        screenRect.x, screenRect.y,
+                        screenRect.width, screenRect.height,
+                        (char *) image.get(),
+                        screenRect.width, screenRect.height,
+                        0, (_frameId++ % INT32_MAX)
+                );
+            } else {
+                _mod->server_paint_rects(
+                        _mod,
+                        dirtyRects.size(), reinterpret_cast<short *>(dirtyRects.data()),
+                        copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
+                        (char *) image.get(),
+                        width, height,
+                        0, (_frameId++ % INT32_MAX)
+                );
+            }
+
+            _fullInvalidate = false;
         }
 
-        _fullInvalidate = false;
+        _mod->server_end_update(_mod);
     }
 
-    _dirtyRects.clear();
-    _mod->server_end_update(_mod);
-
-    _commitUpdateLock.unlock();
 }
 
 void XrdpUlalacaPrivate::calculateSessionSize() {

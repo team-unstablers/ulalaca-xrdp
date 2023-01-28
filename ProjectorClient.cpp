@@ -190,6 +190,7 @@ void ProjectorClient::mainLoop() {
                 LOG(LOG_LEVEL_DEBUG, "mainLoop(): commiting update");
                 _target.commitUpdate(
                     bitmap.get(),
+                    commit->bitmapLength,
                     commit->screenRect.width,
                     commit->screenRect.height
                 );
