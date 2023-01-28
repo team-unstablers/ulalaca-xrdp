@@ -1,5 +1,8 @@
 #include "XrdpUlalacaPrivate.hpp"
+
 #include "ulalaca.hpp"
+#include "SessionBrokerClient.hpp"
+#include "ProjectionThread.hpp"
 
 int XrdpUlalacaPrivate::libModStart(int width, int height, int bpp) {
     // #517eb9
@@ -16,9 +19,11 @@ int XrdpUlalacaPrivate::libModStart(int width, int height, int bpp) {
     _mod->server_fill_rect(_mod, 0, 0, width, height);
     _mod->server_end_update(_mod);
 
+    /*
     if (!isBPPSupported(bpp)) {
         return 1;
     }
+     */
 
     _bpp = bpp;
     // _this->updateBpp(bpp);
@@ -27,32 +32,22 @@ int XrdpUlalacaPrivate::libModStart(int width, int height, int bpp) {
 }
 
 int XrdpUlalacaPrivate::libModConnect() {
-    try {
-        std::string socketPath = _this->getSessionSocketPathUsingCredential(
-                _this->_username, _this->_password
-        );
-        _this->_password.clear();
+    const std::string sessionBrokerIPCPath("/var/run/ulalaca_broker.sock");
 
-        if (socketPath.empty()) {
-            return 1;
-        }
+    SessionBrokerClient brokerClient(sessionBrokerIPCPath);
+    auto response = brokerClient.requestSession(_username, _password);
 
-        _this->_projectionThread = std::make_unique<ProjectionThread>(
-                *_this, socketPath
-        );
+    std::fill(_password.begin(), _password.end(), '\0');
+    _password.clear();
 
-        _this->_projectionThread->start();
-
-        LOG(LOG_LEVEL_TRACE, "sessionSize: %d, %d", _this->_sessionSize.width, _this->_sessionSize.height);
-        _this->_projectionThread->setViewport(_this->_sessionSize);
-        _this->_projectionThread->setOutputSuppression(false);
-    } catch (SystemCallException &e) {
-        _this->serverMessage(e.what(), 0);
+    if (!response.isSuccessful) {
+        serverMessage("failed to request session", response.reason);
+        LOG(LOG_LEVEL_ERROR, "failed to request session: code %d (user %s)", response.reason, _username.c_str());
         return 1;
     }
 
-    _this->serverMessage("welcome to the fantasy zone, get ready!", 0);
-
+    // TODO: try-catch
+    attachToSession(response.sessionPath);
     return 0;
 }
 
@@ -63,7 +58,7 @@ int XrdpUlalacaPrivate::libModEvent(int type, long arg1, long arg2, long arg3, l
     };
 
     if (_projectionThread != nullptr) {
-        _projectionThread->handleEvent(std::move(event));
+        _projectionThread->handleEvent(event);
     }
 
     return 0;
@@ -77,8 +72,8 @@ int XrdpUlalacaPrivate::libModSignal() {
 int XrdpUlalacaPrivate::libModEnd() {
     LOG(LOG_LEVEL_INFO, "lib_mod_end() called");
 
-    if (_this->_projectionThread != nullptr) {
-        _this->_projectionThread->stop();
+    if (_projectionThread != nullptr) {
+        _projectionThread->stop();
     }
 
     return 0;
@@ -101,12 +96,12 @@ int XrdpUlalacaPrivate::libModSetParam(const char *cstrName, const char *cstrVal
     } else if (name == "delay_ms") {
         _delayMs = std::stoi(value);
     } else if (name == "guid") {
-        auto *_guid = reinterpret_cast<const guid *>(value);
-        _guid = *_guid;
+        auto *guid = reinterpret_cast<const struct guid *>(cstrValue);
+        _guid = *guid;
     } else if (name == "disabled_encodings_mask") {
         _encodingsMask = ~std::stoi(value);
     } else if (name == "client_info") {
-        auto *clientInfo = reinterpret_cast<const xrdp_client_info *>(value);
+        auto *clientInfo = reinterpret_cast<const struct xrdp_client_info *>(cstrValue);
         _clientInfo = *clientInfo;
     }
 
@@ -126,8 +121,8 @@ int XrdpUlalacaPrivate::libModCheckWaitObjs() {
 }
 
 int XrdpUlalacaPrivate::libModFrameAck(int flags, int frameId) {
-    LOG(LOG_LEVEL_TRACE, "lib_mod_frame_ack() called: %d", frame_id);
-    _this->_ackFrameId = frame_id;
+    LOG(LOG_LEVEL_TRACE, "lib_mod_frame_ack() called: %d", frameId);
+    _ackFrameId = frameId;
 
     return 0;
 }
@@ -141,7 +136,7 @@ int XrdpUlalacaPrivate::libModServerMonitorResize(int width, int height) {
 }
 
 int XrdpUlalacaPrivate::libModServerMonitorFullInvalidate(int width, int height) {
-    _this->_fullInvalidate = true;
+    _fullInvalidate = true;
     return 0;
 }
 

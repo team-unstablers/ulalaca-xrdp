@@ -7,6 +7,10 @@
 
 #include <thread>
 
+#if defined(HAVE_CONFIG_H)
+#include <config_ac.h>
+#endif
+
 extern "C" {
 #include "arch.h"
 #include "parse.h"

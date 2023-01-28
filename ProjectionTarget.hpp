@@ -6,14 +6,13 @@
 #define ULALACA_PROJECTIONCONTEXT_HPP
 
 #include <cstdint>
-
 #include <utility>
 
 #include "messages/projector.h"
 
-class ProjectionContext {
+class ProjectionTarget {
 public:
-    virtual void addDirtyRect(Rect &rect) = 0;
+    virtual void addDirtyRect(ULIPCRect &rect) = 0;
     
     virtual void commitUpdate(
         const uint8_t *image,

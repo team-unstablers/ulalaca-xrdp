@@ -19,10 +19,10 @@ extern "C" {
 #include "KeycodeMap.hpp"
 
 ProjectionThread::ProjectionThread(
-    XrdpUlalaca &xrdpUlalaca,
+    ProjectionTarget &target,
     const std::string &socketPath
 ):
-    _xrdpUlalaca(xrdpUlalaca),
+    _target(target),
     _ipcConnection(socketPath),
     _isTerminated(false)
 {
@@ -180,7 +180,7 @@ void ProjectionThread::mainLoop() {
                 auto notification = _ipcConnection.read<ULIPCScreenUpdateNotify>(header->length);
     
                 LOG(LOG_LEVEL_DEBUG, "mainLoop(): adding dirty rect");
-                _xrdpUlalaca.addDirtyRect(notification->rect);
+                _target.addDirtyRect(notification->rect);
                 continue;
             }
             case TYPE_SCREEN_UPDATE_COMMIT: {
@@ -188,7 +188,7 @@ void ProjectionThread::mainLoop() {
                 auto bitmap = _ipcConnection.read<uint8_t>(commit->bitmapLength);
     
                 LOG(LOG_LEVEL_DEBUG, "mainLoop(): commiting update");
-                _xrdpUlalaca.commitUpdate(
+                _target.commitUpdate(
                     bitmap.get(),
                     commit->screenRect.width,
                     commit->screenRect.height

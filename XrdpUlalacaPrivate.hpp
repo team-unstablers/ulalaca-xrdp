@@ -22,12 +22,12 @@ extern "C" {
 
 #include "UnixSocket.hpp"
 
-#include "messages/projector.h"
+#include "ProjectionTarget.hpp"
 
 struct XrdpUlalaca;
 class ProjectionThread;
 
-class XrdpUlalacaPrivate {
+class XrdpUlalacaPrivate: public ProjectionTarget {
 public:
     constexpr static const int RECT_SIZE_BYPASS_CREATE = 0;
 
@@ -63,11 +63,16 @@ public:
             const std::string &password
     );
 
+    /**
+     * attach to projector session
+     */
+    void attachToSession(std::string sessionPath);
+
     /* paint related */
     inline int decideCopyRectSize() const;
-    inline std::unique_ptr<std::vector<Rect>> createCopyRects(std::vector<Rect> &dirtyRects, int rectSize) const;
+    inline std::unique_ptr<std::vector<ULIPCRect>> createCopyRects(std::vector<ULIPCRect> &dirtyRects, int rectSize) const;
 
-    void addDirtyRect(Rect &rect);
+    void addDirtyRect(ULIPCRect &rect);
     void commitUpdate(const uint8_t *image, int32_t width, int32_t height);
 
     void calculateSessionSize();

@@ -15,13 +15,13 @@
 #include "IPCConnection.hpp"
 #include "messages/projector.h"
 
-#include "ulalaca.hpp"
+#include "ProjectionTarget.hpp"
 
 
 class ProjectionThread {
 public:
     explicit ProjectionThread(
-        XrdpUlalaca &xrdpUlalaca,
+        ProjectionTarget &target,
         const std::string &socketPath
     );
     ProjectionThread(ProjectionThread &) = delete;
@@ -36,7 +36,7 @@ public:
 private:
     void mainLoop();
     
-    XrdpUlalaca &_xrdpUlalaca;
+    ProjectionTarget &_target;
     IPCConnection _ipcConnection;
     
     bool _isTerminated;

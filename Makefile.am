@@ -27,6 +27,8 @@ libulalaca_la_SOURCES = \
   UlalacaMessages.hpp \
   IPCConnection.hpp \
   IPCConnection.cpp \
+  SessionBrokerClient.hpp \
+  SessionBrokerClient.cpp \
   ProjectionThread.hpp \
   ProjectionThread.cpp \
   KeycodeMap.cpp \
