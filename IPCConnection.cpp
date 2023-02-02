@@ -28,6 +28,10 @@ IPCConnection::IPCConnection(std::string socketPath):
 
 }
 
+FD IPCConnection::descriptor() {
+    return _socket.descriptor();
+}
+
 void IPCConnection::connect() {
     _socket.connect();
 

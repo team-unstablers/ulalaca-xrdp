@@ -29,6 +29,10 @@ ProjectorClient::ProjectorClient(
 
 }
 
+FD ProjectorClient::descriptor() {
+    return _ipcConnection.descriptor();
+}
+
 void ProjectorClient::start() {
     _ipcConnection.connect();
     _projectorThread = std::thread(&ProjectorClient::mainLoop, this);

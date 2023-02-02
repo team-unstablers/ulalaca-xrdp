@@ -113,10 +113,19 @@ int XrdpUlalacaPrivate::libModSessionChange(int, int) {
 }
 
 int XrdpUlalacaPrivate::libModGetWaitObjs(tbus *readObjs, int *rcount, tbus *writeObjs, int *wcount, int *timeout) {
+    // FIXME
+    if (!_isUpdateThreadRunning) {
+        return 0;
+    }
+
+    readObjs[(*rcount)++] = _projectorClient->descriptor();
+    writeObjs[(*wcount)++] = _projectorClient->descriptor();
+
     return 0;
 }
 
 int XrdpUlalacaPrivate::libModCheckWaitObjs() {
+    // TODO: move ipcConnection.read()/write() to here..?
     return 0;
 }
 

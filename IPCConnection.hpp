@@ -23,6 +23,8 @@ public:
     
     explicit IPCConnection(std::string socketPath);
     IPCConnection(IPCConnection &) = delete;
+
+    FD descriptor();
     
     /**
      * @throws SystemCallException

@@ -25,7 +25,9 @@ public:
         const std::string &socketPath
     );
     ProjectorClient(ProjectorClient &) = delete;
-    
+
+    FD descriptor();
+
     void start();
     void stop();
     
@@ -33,6 +35,7 @@ public:
     void setViewport(ULIPCRect rect);
     
     void setOutputSuppression(bool isOutputSuppressed);
+
 private:
     void mainLoop();
     
