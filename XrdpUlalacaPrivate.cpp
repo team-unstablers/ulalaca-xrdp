@@ -78,7 +78,7 @@ int XrdpUlalacaPrivate::decideCopyRectSize() const {
         return 64;
     }
 
-    if (isH264Codec() || isGFXH264Codec()) {
+    if (isNSCodec() || isH264Codec() || isGFXH264Codec()) {
         // ??? FIXME
         return RECT_SIZE_BYPASS_CREATE;
     }
@@ -174,6 +174,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
             continue;
         }
 
+
         auto width = update.width;
         auto height = update.height;
         auto dirtyRects = update.dirtyRects;
@@ -194,7 +195,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
         ULIPCRect screenRect {0, 0, (short) width, (short) height};
         auto copyRectSize = decideCopyRectSize();
 
-        if (_frameId > 0 || !_fullInvalidate) {
+        if ((_frameId > 0 && !_fullInvalidate) || isNSCodec()) {
             auto copyRects = createCopyRects(*dirtyRects, copyRectSize);
 
             _mod->server_paint_rects(
@@ -250,6 +251,10 @@ void XrdpUlalacaPrivate::calculateSessionSize() {
     _sessionSize = _screenLayouts.front();
 }
 
+bool XrdpUlalacaPrivate::isNSCodec() const {
+    return _clientInfo.ns_codec_id != 0;
+}
+
 bool XrdpUlalacaPrivate::isRFXCodec() const {
     return _clientInfo.rfx_codec_id != 0;
 }
@@ -267,7 +272,7 @@ bool XrdpUlalacaPrivate::isGFXH264Codec() const {
 }
 
 bool XrdpUlalacaPrivate::isRawBitmap() const {
-    return !(isRFXCodec() || isJPEGCodec() || isH264Codec() || isGFXH264Codec());
+    return !(isNSCodec() || isRFXCodec() || isJPEGCodec() || isH264Codec() || isGFXH264Codec());
 }
 
 
