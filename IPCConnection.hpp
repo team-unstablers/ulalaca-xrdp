@@ -31,6 +31,8 @@ public:
      */
     void connect();
     void disconnect();
+
+    bool isGood() const;
     
     std::unique_ptr<ULIPCHeader, MallocFreeDeleter> nextHeader();
     
@@ -79,6 +81,8 @@ private:
     UnixSocket _socket;
     std::thread _workerThread;
     bool _isWorkerTerminated;
+
+    bool _isGood;
     
     std::mutex _writeTasksLock;
     std::mutex _readTasksLock;

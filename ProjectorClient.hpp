@@ -38,7 +38,7 @@ public:
 
 private:
     void mainLoop();
-    
+
     ProjectionTarget &_target;
     IPCConnection _ipcConnection;
     

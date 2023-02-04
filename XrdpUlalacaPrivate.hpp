@@ -79,13 +79,15 @@ public:
     inline int decideCopyRectSize() const;
     inline std::unique_ptr<std::vector<ULIPCRect>> createCopyRects(std::vector<ULIPCRect> &dirtyRects, int rectSize) const;
 
-    void addDirtyRect(ULIPCRect &rect);
-    void commitUpdate(const uint8_t *image, size_t size, int32_t width, int32_t height);
+    void addDirtyRect(ULIPCRect &rect) override;
+    void commitUpdate(const uint8_t *image, size_t size, int32_t width, int32_t height) override;
+    void ipcDisconnected() override;
 
     void updateThreadLoop();
 
     void calculateSessionSize();
 
+    inline bool isNSCodec() const;
     inline bool isRFXCodec() const;
     inline bool isJPEGCodec() const;
     inline bool isH264Codec() const;

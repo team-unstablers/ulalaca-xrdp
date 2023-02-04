@@ -23,7 +23,8 @@ IPCConnection::IPCConnection(std::string socketPath):
     _isWorkerTerminated(false),
     
     _messageId(0),
-    _ackId(0)
+    _ackId(0),
+    _isGood(true)
 {
 
 }
@@ -52,6 +53,10 @@ void IPCConnection::disconnect() {
         _workerThread.join();
     }
     _socket.close();
+}
+
+bool IPCConnection::isGood() const {
+    return _isGood;
 }
 
 std::unique_ptr<ULIPCHeader, IPCConnection::MallocFreeDeleter> IPCConnection::nextHeader() {
@@ -86,6 +91,8 @@ void IPCConnection::workerLoop() {
         POLLIN | POLLOUT,
         0
     };
+
+    _isGood = true;
 
     while (!_isWorkerTerminated) {
         if (poll(&pollFd, 1, -1) < 0) {
@@ -138,6 +145,10 @@ void IPCConnection::workerLoop() {
                 }
             }
 
+            if (_isGood && retval <= 0) {
+                break;
+            }
+
             readPos += retval;
 
             if (readPos >= contentLength) {
@@ -154,6 +165,7 @@ void IPCConnection::workerLoop() {
         
         if (pollFd.revents & POLLHUP) {
             LOG(LOG_LEVEL_WARNING, "POLLHUP bit set");
+            _isGood = false;
 
             if (_readTasks.empty()) {
                 LOG(LOG_LEVEL_WARNING, "POLLHUP bit set; closing connection");
@@ -166,4 +178,6 @@ void IPCConnection::workerLoop() {
             break;
         }
     }
+
+    _isGood = false;
 }

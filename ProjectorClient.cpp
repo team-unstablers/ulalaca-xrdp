@@ -52,7 +52,13 @@ void ProjectorClient::handleEvent(XrdpEvent &event) {
     if (_isTerminated) {
         return;
     }
-    
+
+    if (!_ipcConnection.isGood()) {
+        _target.ipcDisconnected();
+        this->stop();
+        return;
+    }
+
     if (event.isKeyEvent()) {
         auto keycode = event.param3;
         auto cgKeycode = rdpKeycodeToCGKeycode(keycode);
@@ -176,7 +182,7 @@ void ProjectorClient::setOutputSuppression(bool isOutputSuppressed) {
 }
 
 void ProjectorClient::mainLoop() {
-    while (!_isTerminated) {
+    while (!_isTerminated && _ipcConnection.isGood()) {
         auto header = _ipcConnection.nextHeader();
         
         switch (header->messageType) {

@@ -118,6 +118,10 @@ int XrdpUlalacaPrivate::libModGetWaitObjs(tbus *readObjs, int *rcount, tbus *wri
         return 0;
     }
 
+    if (_error != 0) {
+        return 1;
+    }
+
     readObjs[(*rcount)++] = _projectorClient->descriptor();
     writeObjs[(*wcount)++] = _projectorClient->descriptor();
 

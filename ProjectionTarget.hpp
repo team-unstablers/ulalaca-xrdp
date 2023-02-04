@@ -19,6 +19,8 @@ public:
         size_t size,
         int32_t width, int32_t height
     ) = 0;
+
+    virtual void ipcDisconnected() = 0;
 };
 
 #endif //ULALACA_PROJECTIONCONTEXT_HPP

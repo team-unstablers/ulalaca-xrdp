@@ -144,6 +144,11 @@ void XrdpUlalacaPrivate::commitUpdate(const uint8_t *image, size_t size, int32_t
     });
 }
 
+void XrdpUlalacaPrivate::ipcDisconnected() {
+    LOG(LOG_LEVEL_WARNING, "ipc disconnected");
+    _error = 1;
+}
+
 void XrdpUlalacaPrivate::updateThreadLoop() {
     while (_isUpdateThreadRunning) {
         while (_updateQueue.empty()) {
