@@ -98,27 +98,37 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
         return std::move(blocks);
     }
 
+    int mapWidth  = ceil((float) _sessionSize.width / rectSize);
+    int mapHeight = ceil((float) _sessionSize.height / rectSize);
+    int mapSize = mapWidth * mapHeight;
+    std::unique_ptr<uint8_t> rectMap(new uint8_t[mapSize]);
+    memset(rectMap.get(), 0x00, mapSize);
+
     for (auto &dirtyRect : dirtyRects) {
         if (_sessionSize.width <= dirtyRect.x ||
             _sessionSize.height <= dirtyRect.y) {
             continue;
         }
 
-        auto width = std::min(dirtyRect.width, (short) (_sessionSize.width - dirtyRect.x));
-        auto height = std::min(dirtyRect.height, (short) (_sessionSize.height - dirtyRect.y));
+        int mapX1 = dirtyRect.x / rectSize;
+        int mapY1 = dirtyRect.y / rectSize;
+        int mapX2 = (dirtyRect.x + dirtyRect.width) / rectSize;
+        int mapY2 = (dirtyRect.y + dirtyRect.height) / rectSize;
 
-        auto baseX = dirtyRect.x - (dirtyRect.x % rectSize);
-        auto baseY = dirtyRect.y - (dirtyRect.y % rectSize);
+        for (int y = mapY1; y <= mapY2; y++) {
+            for (int x = mapX1; x <= mapX2; x++) {
+                rectMap.get()[(y * mapWidth) + x] = 0x01;
+            }
+        }
+    }
 
-        auto blockCountX = ((width + dirtyRect.x % rectSize) + (rectSize - 1)) / rectSize;
-        auto blockCountY = ((height + dirtyRect.y % rectSize) + (rectSize - 1)) / rectSize;
+    for (int y = 0; y < mapHeight; y++) {
+        for (int x = 0; x < mapWidth; x++) {
+            if (rectMap.get()[(y * mapWidth) + x] == 0x01) {
+                int rectX = x * rectSize;
+                int rectY = y * rectSize;
 
-        for (int j = 0; j < blockCountY; j++) {
-            for (int i = 0; i < blockCountX; i++) {
-                short x = baseX + (rectSize * i);
-                short y = baseY + (rectSize * j);
-
-                blocks->emplace_back(ULIPCRect {x, y, (short) rectSize, (short) rectSize });
+                blocks->emplace_back(ULIPCRect{(short) rectX, (short) rectY, (short) rectSize, (short) rectSize});
             }
         }
     }
