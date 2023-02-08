@@ -126,7 +126,53 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
     return std::move(blocks);
 }
 
+bool XrdpUlalacaPrivate::isRectOverlaps(const ULIPCRect &a, const ULIPCRect &b) {
+    int16_t a_x1 = a.x;
+    int16_t a_x2 = a.x + a.width;
+    int16_t a_y1 = a.y;
+    int16_t a_y2 = a.y + a.height;
+    int16_t b_x1 = b.x;
+    int16_t b_x2 = b.x + b.width;
+    int16_t b_y1 = b.y;
+    int16_t b_y2 = b.y + b.height;
+
+    return (
+            (a_x1 >= b_x1 && a_x1 <= b_x2 && a_y1 >= b_y1 && a_y1 <= b_y2) ||
+            (a_x2 >= b_x1 && a_x2 <= b_x2 && a_y1 >= b_y1 && a_y1 <= b_y2) ||
+            (a_x1 >= b_x1 && a_x1 <= b_x2 && a_y2 >= b_y1 && a_y2 <= b_y2) ||
+            (a_x2 >= b_x1 && a_x2 <= b_x2 && a_y2 >= b_y1 && a_y2 <= b_y2)
+    );
+}
+
+void XrdpUlalacaPrivate::mergeRect(ULIPCRect &a, const ULIPCRect &b) {
+    int16_t a_x1 = a.x;
+    int16_t a_x2 = a.x + a.width;
+    int16_t a_y1 = a.y;
+    int16_t a_y2 = a.y + a.height;
+    int16_t b_x1 = b.x;
+    int16_t b_x2 = b.x + b.width;
+    int16_t b_y1 = b.y;
+    int16_t b_y2 = b.y + b.height;
+
+    a.x = std::min(a_x1, b_x1);
+    a.y = std::min(a_y1, b_y1);
+    a.width  = std::max(a_x2, b_x2) - a.x;
+    a.height = std::max(a_y2, b_y2) - a.y;
+}
+
+std::vector<ULIPCRect> XrdpUlalacaPrivate::removeRectOverlap(const ULIPCRect &a, const ULIPCRect &b) {
+
+}
+
 void XrdpUlalacaPrivate::addDirtyRect(ULIPCRect &rect) {
+    for (auto &x: *_dirtyRects) {
+        if (isRectOverlaps(x, rect)) {
+            mergeRect(x, rect);
+            return;
+        }
+    }
+
+
     _dirtyRects->push_back(rect);
 }
 
