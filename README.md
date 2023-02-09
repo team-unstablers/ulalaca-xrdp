@@ -16,22 +16,30 @@ $ git checkout devel
 ```
 
 2. add ulalaca-xrdp into xrdp source tree
+```shell
+git clone https://github.com/team-unstablers/ulalaca-xrdp ulalaca
+```
 
-3. apply patch
+3. apply patches
 ```shell
 $ patch -p1 < ulalaca/xrdp-automake.patch
 $ patch -p1 < ulalaca/xrdp-encoder-force-use-bgra.patch
 ```
 
-4. build and install
+4. install dependencies
+```shell
+brew install libxfixes libxrandr nasm
+```
+
+5. build and install
 ```shell
 $ ./bootstrap
 $ ./configure --enable-pixman PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:/usr/local/opt/libjpeg-turbo/lib/pkgconf
 $ make -j8 
-$ make install
+$ sudo make install
 ```
 
-5. edit /etc/xrdp/xrdp.ini
+6. edit /etc/xrdp/xrdp.ini
 ```diff
  ; Section name to use for automatic login if the client sends username
  ; and password. If empty, the domain name sent by the client is used.
