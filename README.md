@@ -34,7 +34,7 @@ brew install libxfixes libxrandr nasm
 5. build and install
 ```shell
 $ ./bootstrap
-$ ./configure --enable-pixman PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:/usr/local/opt/libjpeg-turbo/lib/pkgconf
+$ ./configure --enable-ulalaca --enable-pixman PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:/usr/local/opt/libjpeg-turbo/lib/pkgconf
 $ make -j8 
 $ sudo make install
 ```
