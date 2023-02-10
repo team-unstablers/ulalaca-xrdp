@@ -214,6 +214,8 @@ void XrdpUlalacaPrivate::ipcDisconnected() {
 }
 
 void XrdpUlalacaPrivate::updateThreadLoop() {
+    std::vector<ULIPCRect> skippedRects;
+
     while (_isUpdateThreadRunning) {
         while (_updateQueue.empty()) {
             using namespace std::chrono_literals;
@@ -233,16 +235,19 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
         auto now = std::chrono::steady_clock::now();
         auto tdelta = std::chrono::duration<double>(now.time_since_epoch()).count() - update.timestamp;
 
-        if (tdelta > 1.0 / 15.0 || _updateQueue.size() > 4) {
-            LOG(LOG_LEVEL_INFO, "skipping frame (tdelta = %.4f)", tdelta);
-            continue;
-        }
-
-
         auto width = update.width;
         auto height = update.height;
         auto dirtyRects = update.dirtyRects;
         auto image = update.image;
+
+        if (tdelta > 1.0 / 30.0 || _updateQueue.size() > 2 || std::abs(_frameId - _ackFrameId) > 1) {
+            LOG(LOG_LEVEL_INFO, "skipping frame (tdelta = %.4f)", tdelta);
+            skippedRects.insert(skippedRects.end(), dirtyRects->begin(), dirtyRects->end());
+            continue;
+        } else {
+            dirtyRects->insert(dirtyRects->end(), skippedRects.begin(), skippedRects.end());
+            skippedRects.clear();
+        }
 
         // LOG(LOG_LEVEL_TRACE, "updating screen: [%.4f] %d, %d", update.timestamp, update.width, update.height);
 
