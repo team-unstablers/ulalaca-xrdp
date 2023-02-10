@@ -2,6 +2,8 @@
 // Created by Gyuhwan Park on 2023/01/28.
 //
 
+#include <cmath>
+
 #include "XrdpUlalacaPrivate.hpp"
 
 #include "ProjectorClient.hpp"
@@ -32,7 +34,7 @@ XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
         _socket(),
         _projectorClient(),
 
-        _fullInvalidate(false),
+        _fullInvalidate(true),
         _commitUpdateLock(),
 
         _dirtyRects(std::make_shared<std::vector<ULIPCRect>>())
@@ -98,27 +100,43 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
         return std::move(blocks);
     }
 
+    int mapWidth  = ceil((float) _sessionSize.width / (float) rectSize);
+    int mapHeight = ceil((float) _sessionSize.height / (float) rectSize);
+    int mapSize = mapWidth * mapHeight;
+    std::unique_ptr<uint8_t> rectMap(new uint8_t[mapSize]);
+    memset(rectMap.get(), 0x00, mapSize);
+
     for (auto &dirtyRect : dirtyRects) {
         if (_sessionSize.width <= dirtyRect.x ||
             _sessionSize.height <= dirtyRect.y) {
             continue;
         }
 
-        auto width = std::min(dirtyRect.width, (short) (_sessionSize.width - dirtyRect.x));
-        auto height = std::min(dirtyRect.height, (short) (_sessionSize.height - dirtyRect.y));
+        int mapX1 = dirtyRect.x / rectSize;
+        int mapY1 = dirtyRect.y / rectSize;
+        int mapX2 = std::min(
+                (dirtyRect.x + dirtyRect.width) / rectSize,
+                mapWidth - 1
+        );
+        int mapY2 = std::min(
+                (dirtyRect.y + dirtyRect.height) / rectSize,
+                mapHeight - 1
+        );
 
-        auto baseX = dirtyRect.x - (dirtyRect.x % rectSize);
-        auto baseY = dirtyRect.y - (dirtyRect.y % rectSize);
+        for (int y = mapY1; y <= mapY2; y++) {
+            for (int x = mapX1; x <= mapX2; x++) {
+                rectMap.get()[(y * mapWidth) + x] = 0x01;
+            }
+        }
+    }
 
-        auto blockCountX = ((width + dirtyRect.x % rectSize) + (rectSize - 1)) / rectSize;
-        auto blockCountY = ((height + dirtyRect.y % rectSize) + (rectSize - 1)) / rectSize;
+    for (int y = 0; y < mapHeight; y++) {
+        for (int x = 0; x < mapWidth; x++) {
+            if (rectMap.get()[(y * mapWidth) + x] == 0x01) {
+                int rectX = x * rectSize;
+                int rectY = y * rectSize;
 
-        for (int j = 0; j < blockCountY; j++) {
-            for (int i = 0; i < blockCountX; i++) {
-                short x = baseX + (rectSize * i);
-                short y = baseY + (rectSize * j);
-
-                blocks->emplace_back(ULIPCRect {x, y, (short) rectSize, (short) rectSize });
+                blocks->emplace_back(ULIPCRect{(short) rectX, (short) rectY, (short) rectSize, (short) rectSize});
             }
         }
     }
@@ -126,7 +144,53 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
     return std::move(blocks);
 }
 
+bool XrdpUlalacaPrivate::isRectOverlaps(const ULIPCRect &a, const ULIPCRect &b) {
+    int16_t a_x1 = a.x;
+    int16_t a_x2 = a.x + a.width;
+    int16_t a_y1 = a.y;
+    int16_t a_y2 = a.y + a.height;
+    int16_t b_x1 = b.x;
+    int16_t b_x2 = b.x + b.width;
+    int16_t b_y1 = b.y;
+    int16_t b_y2 = b.y + b.height;
+
+    return (
+            (a_x1 >= b_x1 && a_x1 <= b_x2 && a_y1 >= b_y1 && a_y1 <= b_y2) ||
+            (a_x2 >= b_x1 && a_x2 <= b_x2 && a_y1 >= b_y1 && a_y1 <= b_y2) ||
+            (a_x1 >= b_x1 && a_x1 <= b_x2 && a_y2 >= b_y1 && a_y2 <= b_y2) ||
+            (a_x2 >= b_x1 && a_x2 <= b_x2 && a_y2 >= b_y1 && a_y2 <= b_y2)
+    );
+}
+
+void XrdpUlalacaPrivate::mergeRect(ULIPCRect &a, const ULIPCRect &b) {
+    int16_t a_x1 = a.x;
+    int16_t a_x2 = a.x + a.width;
+    int16_t a_y1 = a.y;
+    int16_t a_y2 = a.y + a.height;
+    int16_t b_x1 = b.x;
+    int16_t b_x2 = b.x + b.width;
+    int16_t b_y1 = b.y;
+    int16_t b_y2 = b.y + b.height;
+
+    a.x = std::min(a_x1, b_x1);
+    a.y = std::min(a_y1, b_y1);
+    a.width  = std::max(a_x2, b_x2) - a.x;
+    a.height = std::max(a_y2, b_y2) - a.y;
+}
+
+std::vector<ULIPCRect> XrdpUlalacaPrivate::removeRectOverlap(const ULIPCRect &a, const ULIPCRect &b) {
+
+}
+
 void XrdpUlalacaPrivate::addDirtyRect(ULIPCRect &rect) {
+    for (auto &x: *_dirtyRects) {
+        if (isRectOverlaps(x, rect)) {
+            mergeRect(x, rect);
+            return;
+        }
+    }
+
+
     _dirtyRects->push_back(rect);
 }
 
@@ -195,7 +259,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
         ULIPCRect screenRect {0, 0, (short) width, (short) height};
         auto copyRectSize = decideCopyRectSize();
 
-        if ((_frameId > 0 && !_fullInvalidate) || isNSCodec()) {
+        if (!_fullInvalidate) {
             auto copyRects = createCopyRects(*dirtyRects, copyRectSize);
 
             _mod->server_paint_rects(
@@ -218,7 +282,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
                         screenRect.width, screenRect.height,
                         (char *) image.get(),
                         screenRect.width, screenRect.height,
-                        0, (_frameId++ % INT32_MAX)
+                        0, 0
                 );
             } else {
                 _mod->server_paint_rects(
