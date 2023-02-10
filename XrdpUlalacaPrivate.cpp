@@ -282,7 +282,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
                         screenRect.width, screenRect.height,
                         (char *) image.get(),
                         screenRect.width, screenRect.height,
-                        0, (_frameId++ % INT32_MAX)
+                        0, 0
                 );
             } else {
                 _mod->server_paint_rects(
