@@ -2,6 +2,8 @@
 // Created by Gyuhwan Park on 2023/01/28.
 //
 
+#include <cmath>
+
 #include "XrdpUlalacaPrivate.hpp"
 
 #include "ProjectorClient.hpp"
@@ -32,7 +34,7 @@ XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
         _socket(),
         _projectorClient(),
 
-        _fullInvalidate(false),
+        _fullInvalidate(true),
         _commitUpdateLock(),
 
         _dirtyRects(std::make_shared<std::vector<ULIPCRect>>())
@@ -98,8 +100,8 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
         return std::move(blocks);
     }
 
-    int mapWidth  = ceil((float) _sessionSize.width / rectSize);
-    int mapHeight = ceil((float) _sessionSize.height / rectSize);
+    int mapWidth  = ceil((float) _sessionSize.width / (float) rectSize);
+    int mapHeight = ceil((float) _sessionSize.height / (float) rectSize);
     int mapSize = mapWidth * mapHeight;
     std::unique_ptr<uint8_t> rectMap(new uint8_t[mapSize]);
     memset(rectMap.get(), 0x00, mapSize);
@@ -112,8 +114,14 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
 
         int mapX1 = dirtyRect.x / rectSize;
         int mapY1 = dirtyRect.y / rectSize;
-        int mapX2 = (dirtyRect.x + dirtyRect.width) / rectSize;
-        int mapY2 = (dirtyRect.y + dirtyRect.height) / rectSize;
+        int mapX2 = std::min(
+                (dirtyRect.x + dirtyRect.width) / rectSize,
+                mapWidth - 1
+        );
+        int mapY2 = std::min(
+                (dirtyRect.y + dirtyRect.height) / rectSize,
+                mapHeight - 1
+        );
 
         for (int y = mapY1; y <= mapY2; y++) {
             for (int x = mapX1; x <= mapX2; x++) {
@@ -251,7 +259,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
         ULIPCRect screenRect {0, 0, (short) width, (short) height};
         auto copyRectSize = decideCopyRectSize();
 
-        if ((_frameId > 0 && !_fullInvalidate) || isNSCodec()) {
+        if (!_fullInvalidate) {
             auto copyRects = createCopyRects(*dirtyRects, copyRectSize);
 
             _mod->server_paint_rects(
