@@ -264,6 +264,12 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
         ULIPCRect screenRect {0, 0, (short) width, (short) height};
         auto copyRectSize = decideCopyRectSize();
 
+#ifdef XRDP_TUMOD_ENCODER_HINTS_AVAILABLE
+        int paintFlags = XRDP_ENCODER_HINT_QUALITY_LOW;
+#else
+        int paintFlags = 0;
+#endif
+
         if (!_fullInvalidate) {
             auto copyRects = createCopyRects(*dirtyRects, copyRectSize);
 
@@ -273,7 +279,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
                     copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
                     (char *) image.get(),
                     width, height,
-                    0, (_frameId++ % INT32_MAX)
+                    paintFlags, (_frameId++ % INT32_MAX)
             );
         } else {
             // paint entire screen
@@ -296,7 +302,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
                         copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
                         (char *) image.get(),
                         width, height,
-                        0, (_frameId++ % INT32_MAX)
+                        paintFlags, (_frameId++ % INT32_MAX)
                 );
             }
 
