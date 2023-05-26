@@ -43,7 +43,7 @@ XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
 
 XrdpUlalacaPrivate::~XrdpUlalacaPrivate() {
     _isUpdateThreadRunning = false;
-    if (_updateThread->joinable()) {
+    if (_updateThread != nullptr && _updateThread->joinable()) {
         _updateThread->join();
     }
 }
