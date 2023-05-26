@@ -16,7 +16,10 @@ check_PROGRAMS = test_ulalaca_xrdp
 test_ulalaca_xrdp_SOURCES = \
     catch_amalgamated.cpp \
     catch_amalgamated.hpp \
-    test_copyrects.cpp
+    MockedUnixSocket.cpp \
+    MockedUnixSocket.hpp \
+    test_copyrects.cpp \
+    test_ipc.cpp
 
 test_ulalaca_xrdp_CFLAGS = \
     @CHECK_CFLAGS@
