@@ -164,6 +164,8 @@ struct XrdpUlalaca {
     tintptr painter;
     struct source_info *si;
 
+    std::unique_ptr<XrdpUlalacaPrivate> _impl;
+
 public:
     explicit XrdpUlalaca();
     
@@ -187,8 +189,6 @@ public:
                                               int width, int height);
     static int lib_mod_server_version_message(XrdpUlalaca *_this);
 
-private:
-    std::unique_ptr<XrdpUlalacaPrivate> _impl;
 };
 
 };
