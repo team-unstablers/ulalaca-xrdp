@@ -88,11 +88,11 @@ int XrdpUlalacaPrivate::decideCopyRectSize() const {
     return RECT_SIZE_BYPASS_CREATE;
 }
 
-std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
+std::shared_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
     std::vector<ULIPCRect> &dirtyRects,
     int rectSize
 ) const {
-    auto blocks = std::make_unique<std::vector<ULIPCRect>>();
+    auto blocks = std::make_shared<std::vector<ULIPCRect>>();
     blocks->reserve((_sessionSize.width * _sessionSize.height) / (rectSize * rectSize));
 
     if (rectSize == RECT_SIZE_BYPASS_CREATE) {
@@ -100,8 +100,8 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
         return std::move(blocks);
     }
 
-    int mapWidth  = ceil((float) _sessionSize.width / (float) rectSize);
-    int mapHeight = ceil((float) _sessionSize.height / (float) rectSize);
+    int mapWidth  = std::ceil((float) _sessionSize.width / (float) rectSize);
+    int mapHeight = std::ceil((float) _sessionSize.height / (float) rectSize);
     int mapSize = mapWidth * mapHeight;
     std::unique_ptr<uint8_t> rectMap(new uint8_t[mapSize]);
     memset(rectMap.get(), 0x00, mapSize);
@@ -112,16 +112,16 @@ std::unique_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
             continue;
         }
 
-        int mapX1 = dirtyRect.x / rectSize;
-        int mapY1 = dirtyRect.y / rectSize;
+        int mapX1 = (int) std::floor((float) dirtyRect.x / rectSize);
+        int mapY1 = (int) std::floor((float) dirtyRect.y / rectSize);
         int mapX2 = std::min(
-                (dirtyRect.x + dirtyRect.width) / rectSize,
-                mapWidth - 1
-        );
+                (int) std::ceil((float) (dirtyRect.x + dirtyRect.width) / rectSize),
+                mapWidth
+        ) - 1;
         int mapY2 = std::min(
-                (dirtyRect.y + dirtyRect.height) / rectSize,
-                mapHeight - 1
-        );
+                (int) std::ceil((float) (dirtyRect.y + dirtyRect.height) / rectSize),
+                mapHeight
+        ) - 1;
 
         for (int y = mapY1; y <= mapY2; y++) {
             for (int x = mapX1; x <= mapX2; x++) {
