@@ -314,6 +314,14 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
 
 }
 
+void XrdpUlalacaPrivate::setSessionSize(int width, int height) {
+    _screenLayouts.clear();
+    _screenLayouts.emplace_back(ULIPCRect {
+            0, 0, (short) width, (short) height
+    });
+    calculateSessionSize();
+}
+
 void XrdpUlalacaPrivate::calculateSessionSize() {
     // TODO: calculate session size to support multiple display environments
     if (_screenLayouts.empty()) {

@@ -8,11 +8,7 @@ int XrdpUlalacaPrivate::libModStart(int width, int height, int bpp) {
     // #517eb9
     constexpr const unsigned int BACKGROUND_COLOR = 0xb97e51;
 
-    _screenLayouts.clear();
-    _screenLayouts.emplace_back(ULIPCRect {
-            0, 0, (short) width, (short) height
-    });
-    calculateSessionSize();
+    setSessionSize(width, height);
 
     _mod->server_begin_update(_mod);
     _mod->server_set_fgcolor(_mod, (int) BACKGROUND_COLOR);
