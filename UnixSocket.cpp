@@ -15,6 +15,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include <fcntl.h>
+#include <poll.h>
 
 #include "UnixSocket.hpp"
 
@@ -24,6 +26,24 @@ ssize_t UnixSocketBase::read(void *buffer, size_t size) {
 
 ssize_t UnixSocketBase::write(const void *buffer, size_t size) {
     return ::write(descriptor(), buffer, size);
+}
+
+pollfd UnixSocketBase::poll(short events, int timeout) {
+    pollfd pollFd = {
+        descriptor(),
+        events,
+        0
+    };
+
+    if (::poll(&pollFd, 1, timeout) < 0) {
+        throw SystemCallException(errno, "poll");
+    }
+
+    return pollFd;
+}
+
+int UnixSocketBase::fcntl(int cmd, int arg) {
+    return ::fcntl(descriptor(), cmd, arg);
 }
 
 void UnixSocketBase::close() {
@@ -110,13 +130,5 @@ FD UnixSocket::createSocket() {
     if (descriptor < 0) {
         throw SystemCallException(errno, "socket");
     }
-
-    // size_t recvBufferSize = 256000;
-    // setsockopt(descriptor, SOL_SOCKET, SO_RCVBUF, &recvBufferSize, sizeof(recvBufferSize));
-
-
-    // size_t sendBufferSize = 256000;
-    // setsockopt(descriptor, SOL_SOCKET, SO_SNDBUF, &sendBufferSize, sizeof(sendBufferSize));
-
     return descriptor;
 }

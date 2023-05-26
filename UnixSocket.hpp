@@ -5,10 +5,12 @@
 #ifndef ULALACA_UNIXSOCKET_HPP
 #define ULALACA_UNIXSOCKET_HPP
 
-#include <string>
-
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#include <poll.h>
+
+#include <string>
 
 #include "SystemCallException.hpp"
 
@@ -33,7 +35,7 @@ public:
      * @return 버퍼에 실제로 읽힌 데이터의 크기를 반환합니다.
      *         플랫폼에 따라 오류가 발생하면 음수 값이 반환될 수 있습니다.
      */
-    ssize_t read(void *buffer, size_t size);
+    virtual ssize_t read(void *buffer, size_t size);
 
     /**
      * 소켓에 데이터를 씁니다.
@@ -44,12 +46,15 @@ public:
      * @return 소켓에 실제로 쓰여진 데이터의 크기를 반환합니다.
      *         플랫폼에 따라 오류가 발생하면 음수 값이 반환될 수 있습니다.
      */
-    ssize_t write(const void *buffer, size_t size);
+    virtual ssize_t write(const void *buffer, size_t size);
+
+    virtual pollfd poll(short events, int timeout);
+    virtual int fcntl(int cmd, int arg);
 
     /**
      * 소켓을 닫습니다.
      */
-    void close();
+    virtual void close();
 
 };
 
@@ -75,7 +80,7 @@ public:
      * @throws SystemCallException
      *      bind()의 리턴 값이 -1일 시 errno를 담은 예외를 던집니다.
      */
-    void bind();
+    virtual void bind();
 
     /**
      * listen(2)를 호출합니다.
@@ -84,7 +89,7 @@ public:
      * @throws SystemCallException
      *      listen()의 리턴 값이 -1일 시 errno를 담은 예외를 던집니다.
      */
-    void listen();
+    virtual void listen();
 
     /**
      * accept(2)를 호출합니다.
@@ -94,12 +99,12 @@ public:
      * @throws SystemCallException
      *      accept()의 리턴 값이 -1일 시 errno를 담은 예외를 던집니다.
      */
-    UnixSocketConnection accept();
+    virtual UnixSocketConnection accept();
 
     /**
      * connect(2)를 호출합니다.
      */
-    void connect();
+    virtual void connect();
 
     FD descriptor() override;
 
