@@ -79,9 +79,10 @@ public:
      */
     void attachToSession(std::string sessionPath);
 
+
     /* paint related */
-    inline int decideCopyRectSize() const;
-    inline std::unique_ptr<std::vector<ULIPCRect>> createCopyRects(std::vector<ULIPCRect> &dirtyRects, int rectSize) const;
+    int decideCopyRectSize() const;
+    std::shared_ptr<std::vector<ULIPCRect>> createCopyRects(std::vector<ULIPCRect> &dirtyRects, int rectSize) const;
 
     void addDirtyRect(ULIPCRect &rect) override;
     void commitUpdate(const uint8_t *image, size_t size, int32_t width, int32_t height) override;
@@ -89,6 +90,10 @@ public:
 
     void updateThreadLoop();
 
+    /**
+     * TODO: add support for multiple displays
+     */
+    void setSessionSize(int width, int height);
     void calculateSessionSize();
 
     inline bool isNSCodec() const;

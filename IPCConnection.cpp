@@ -7,9 +7,9 @@
 #endif
 
 #include <cassert>
+#include <utility>
 
 #include <fcntl.h>
-#include <poll.h>
 
 extern "C" {
 #include "parse.h"
@@ -18,10 +18,11 @@ extern "C" {
 
 #include "IPCConnection.hpp"
 
-IPCConnection::IPCConnection(std::string socketPath):
-    _socket(socketPath),
+IPCConnection::IPCConnection(std::shared_ptr<UnixSocket> socket):
+    _socket(std::move(socket)),
     _isWorkerTerminated(false),
-    
+
+    _workerThread(),
     _messageId(0),
     _ackId(0),
     _isGood(true)
@@ -29,19 +30,24 @@ IPCConnection::IPCConnection(std::string socketPath):
 
 }
 
+IPCConnection::IPCConnection(const std::string &socketPath):
+    IPCConnection(std::make_shared<UnixSocket>(socketPath))
+{
+
+}
+
 FD IPCConnection::descriptor() {
-    return _socket.descriptor();
+    return _socket->descriptor();
 }
 
 void IPCConnection::connect() {
-    _socket.connect();
+    _socket->connect();
 
     // enable non-blocking io
-    auto flags = fcntl(_socket.descriptor(), F_GETFL, 0);
-    if (fcntl(_socket.descriptor(), F_SETFL, flags | O_NONBLOCK)) {
+    auto flags = _socket->fcntl(F_GETFL, 0);
+    if (_socket->fcntl(F_SETFL, flags | O_NONBLOCK)) {
         throw SystemCallException(errno, "fcntl");
     }
-
 
     _workerThread = std::thread(&IPCConnection::workerLoop, this);
 }
@@ -52,7 +58,7 @@ void IPCConnection::disconnect() {
     if (_workerThread.joinable()) {
         _workerThread.join();
     }
-    _socket.close();
+    _socket->close();
 }
 
 bool IPCConnection::isGood() const {
@@ -86,18 +92,10 @@ void IPCConnection::workerLoop() {
     size_t readPos = 0;
     std::unique_ptr<uint8_t> readBuffer;
 
-    pollfd pollFd {
-        _socket.descriptor(),
-        POLLIN | POLLOUT,
-        0
-    };
-
     _isGood = true;
 
     while (!_isWorkerTerminated) {
-        if (poll(&pollFd, 1, -1) < 0) {
-            throw SystemCallException(errno, "poll");
-        }
+        auto pollFd = _socket->poll(POLLIN | POLLOUT, -1);
 
         bool canRead = (pollFd.revents & POLLIN) > 0;
         bool canWrite = (pollFd.revents & POLLOUT) > 0;
@@ -107,13 +105,13 @@ void IPCConnection::workerLoop() {
             auto writeTask = std::move(_writeTasks.front());
             _writeTasks.pop();
             _writeTasksLock.unlock();
-            
-            
-            if (_socket.write(writeTask.second.get(), writeTask.first) < 0) {
+
+
+            if (_socket->write(writeTask.second.get(), writeTask.first) < 0) {
                 if (errno == EAGAIN) {
                     continue;
                 }
-                
+
                 LOG(LOG_LEVEL_ERROR, "write() failed (errno=%d)", errno);
                 continue;
             }
@@ -135,7 +133,7 @@ void IPCConnection::workerLoop() {
                 contentLength - readPos
             );
 
-            size_t retval = _socket.read(readBuffer.get() + readPos, readForBytes);
+            size_t retval = _socket->read(readBuffer.get() + readPos, readForBytes);
 
             if (retval < 0) {
                 if (errno == EAGAIN) {
@@ -162,7 +160,7 @@ void IPCConnection::workerLoop() {
                 readPos = 0;
             }
         }
-        
+
         if (pollFd.revents & POLLHUP) {
             LOG(LOG_LEVEL_WARNING, "POLLHUP bit set");
             _isGood = false;
@@ -172,7 +170,7 @@ void IPCConnection::workerLoop() {
                 break;
             }
         }
-    
+
         if (pollFd.revents & POLLERR) {
             LOG(LOG_LEVEL_ERROR, "POLLERR bit set; closing connection");
             break;
