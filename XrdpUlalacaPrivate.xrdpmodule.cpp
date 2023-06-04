@@ -1,8 +1,11 @@
 #include "XrdpUlalacaPrivate.hpp"
 
 #include "ulalaca.hpp"
+
 #include "SessionBrokerClient.hpp"
 #include "ProjectorClient.hpp"
+
+#include "XrdpChannelEvent.hpp"
 
 int XrdpUlalacaPrivate::libModStart(int width, int height, int bpp) {
     // #517eb9
@@ -52,6 +55,17 @@ int XrdpUlalacaPrivate::libModEvent(int type, long arg1, long arg2, long arg3, l
             (XrdpEvent::Type) type,
             arg1, arg2, arg3, arg4
     };
+
+    if (event.type == XrdpEvent::CHANNEL_EVENT) {
+        XrdpChannelEvent channelEvent(event);
+
+        // TODO: std::find_if ...
+        if (_clipboardChannel->canHandle(channelEvent)) {
+            _clipboardChannel->handleEvent(channelEvent);
+        }
+
+        return 0;
+    }
 
     if (_projectorClient != nullptr) {
         _projectorClient->handleEvent(event);

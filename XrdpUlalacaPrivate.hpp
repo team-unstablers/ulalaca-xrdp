@@ -25,6 +25,8 @@ extern "C" {
 
 #include "ProjectionTarget.hpp"
 
+#include "ClipboardChannel.hpp"
+
 struct XrdpUlalaca;
 class ProjectorClient;
 
@@ -136,7 +138,7 @@ private:
     std::shared_ptr<std::vector<ULIPCRect>> _dirtyRects;
 
     std::queue<ScreenUpdate> _updateQueue;
-
+    std::shared_ptr<ClipboardChannel> _clipboardChannel;
 };
 
 #endif

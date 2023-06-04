@@ -37,7 +37,9 @@ XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
         _fullInvalidate(true),
         _commitUpdateLock(),
 
-        _dirtyRects(std::make_shared<std::vector<ULIPCRect>>())
+        _dirtyRects(std::make_shared<std::vector<ULIPCRect>>()),
+
+        _clipboardChannel(std::make_shared<ClipboardChannel>(mod))
 {
 }
 

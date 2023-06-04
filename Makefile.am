@@ -24,6 +24,13 @@ libulalaca_la_SOURCES = \
   XrdpTransport.cpp \
   XrdpStream.hpp \
   XrdpStream.cpp \
+  XrdpStream.template.cpp \
+  XrdpChannelEvent.hpp \
+  XrdpChannelEvent.cpp \
+  ClipboardEntry.hpp \
+  ClipboardEntry.cpp \
+  ClipboardChannel.hpp \
+  ClipboardChannel.cpp \
   UlalacaMessages.hpp \
   IPCConnection.hpp \
   IPCConnection.cpp \
