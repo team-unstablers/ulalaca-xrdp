@@ -15,6 +15,9 @@ extern "C" {
 #include "defines.h"
 };
 
+/**
+ * wrapper class for xrdp stream
+ */
 class XrdpStream {
 public:
     using Stream = stream;
@@ -27,8 +30,53 @@ public:
     template<typename T>
     XrdpStream &operator<< (T value);
 
+    void write(uint8_t value);
+    void write(uint16_t value);
+    void write(uint32_t value);
+    void write(uint64_t value);
+    void write(const uint8_t *data, size_t size);
+
+    uint8_t readUInt8();
+    uint16_t readUInt16();
+    uint32_t readUInt32();
+    uint64_t readUInt64();
+
+    /**
+     * @brief calculates size of the entire stream
+     */
+    ptrdiff_t size() const;
+
+    /**
+     * @brief calculates distance between current position and the end of the stream
+     */
+    ptrdiff_t distance() const;
+
+    const char *channelHeader() const;
+
+    void seekTo(ptrdiff_t offset);
+
+    /**
+     * equivalent to s_push_layer(s, channel_hdr, n)
+     */
+    void markChannelHeader(int offset);
+    /**
+     * equivalent to s_pop_layer(s, channel_hdr)
+     */
+    void seekToChannelHeader();
+
+    /**
+     * @brief returns pointer to the beginning of the stream
+     */
+    const char *begin() const;
+    void seekToBegin();
+
+    const char *end() const;
+    void markEnd();
+
 private:
     std::unique_ptr<Stream, StreamDeleter> _stream;
 };
+
+#include "XrdpStream.template.cpp"
 
 #endif //ULALACA_XRDPSTREAM_HPP
