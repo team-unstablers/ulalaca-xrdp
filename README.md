@@ -1,70 +1,56 @@
-# ulalaca-xrdp 
+# XrdpUlalaca 
+
+xrdp module for [麗 -ulalaca-](https://github.com/team-unstablers/ulalaca)
 
 ![Screenshot_20220527_171145](https://user-images.githubusercontent.com/964412/170659838-3843d5e9-3372-47f8-940b-4ce183ca5ec9.png)
 
 # NOTE
 
 - **STILL IN HEAVY DEVELOPMENT, NOT SUITABLE FOR PRODUCTION USE YET**
-- This xrdp module requires `sessionbroker` and `sessionprojector`, you can get these apps from [麗 -ulalaca-](https://github.com/unstabler/ulalaca).
+- **This xrdp module DOES NOT work as a standalone module.** (requires `sessionbroker` and `sessionprojector`; you can get these apps from [麗 -ulalaca-](https://github.com/unstabler/ulalaca)).
+
 
 # INSTALLATION
-1. fetch xrdp source code
-```shell
-$ git clone https://github.com/neutrinolabs/xrdp.git xrdp
-$ cd xrdp
-$ git checkout devel
-```
 
-2. add ulalaca-xrdp into xrdp source tree
-```shell
-git clone https://github.com/team-unstablers/ulalaca-xrdp ulalaca
-```
+To install 麗 -Ulalaca- and XrdpUlalaca on your system, Please check our [INSTALLATION GUIDE](https://teamunstablers.notion.site/xrdp-Ulalaca-Getting-started-f82b0c55f0b540a6ac277cc5902361b1).
 
-3. apply patches
-```shell
-$ patch -p1 < ulalaca/xrdp-automake.patch
-$ patch -p1 < ulalaca/xrdp-encoder-force-use-bgra.patch
-```
+## BUILD FROM SOURCE
+Also, you can build XrdpUlalaca from source code. Check our [experimental homebrew formulas for xrdp](https://github.com/team-unstablers/xrdp-brew-formulas/blob/main/xrdp-tumod/xrdp-git.rb) for build instructions.
 
-4. install dependencies
-```shell
-brew install libxfixes libxrandr nasm
-```
 
-5. build and install
-```shell
-$ ./bootstrap
-$ ./configure --enable-ulalaca --enable-pixman PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:/usr/local/opt/libjpeg-turbo/lib/pkgconf
-$ make -j8 
-$ sudo make install
-```
+# TESTING
 
-6. edit /etc/xrdp/xrdp.ini
+### PREPARING
+
+Tests of XrdpUlalaca has not been merged to xrdp upstream yet, so you will need to modify `xrdp_src/configure.ac` to add targets for testing.
+
 ```diff
- ; Section name to use for automatic login if the client sends username
- ; and password. If empty, the domain name sent by the client is used.
- ; If empty and no domain name is given, the first suitable section in
- ; this file will be used.
- autorun=
+diff --git a/configure.ac b/configure.ac
+index 3e3557db..e5154f66 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -582,6 +582,7 @@ AC_CONFIG_FILES([
+   mc/Makefile
+   neutrinordp/Makefile
+   ulalaca/Makefile
++  ulalaca/tests/Makefile
+   pkgconfig/Makefile
+   pkgconfig/xrdp.pc
+   pkgconfig/xrdp-uninstalled.pc
+```
 
- allow_channels=true
- allow_multimon=true
- bitmap_cache=true
--bitmap_compression=true
-+bitmap_compression=false
--bulk_compression=true
-+bulk_compression=false
- #hidelogwindow=true
- max_bpp=32
- new_cursors=true
- 
- ; ...
- 
-+[Ulalaca]
-+name=Ulalaca
-+lib=libulalaca.dylib
-+username=ask
-+password=ask
+### RUNNING TESTS
+
+```shell
+# run xrdp_src/configure ... 
+# To test XrdpUlalaca, you need to build XrdpUlalaca first.
+$ cd xrdp_src/ulalaca
+$ make -j8
+
+# Then, you can test XrdpUlalaca with the following commands.
+$ cd tests
+$ make test_ulalaca_xrdp
+$ ./test_ulalaca_xrdp
 ```
 
 # AUTHOR
