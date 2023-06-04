@@ -30,7 +30,8 @@ public:
 
     void start();
     void stop();
-    
+
+    void sendHello(const std::string &xrdpUlalacaVersion, const xrdp_client_info &clientInfo);
     void handleEvent(XrdpEvent &event);
     void setViewport(ULIPCRect rect);
     

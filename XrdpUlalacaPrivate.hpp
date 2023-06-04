@@ -41,6 +41,9 @@ struct ScreenUpdate {
 
 class XrdpUlalacaPrivate: public ProjectionTarget {
 public:
+    // FIXME: is there TWO VERSION FIELDS??? (see ulalaca.hpp)
+    static const std::string XRDP_ULALACA_VERSION;
+
     constexpr static const int RECT_SIZE_BYPASS_CREATE = 0;
 
     constexpr static const int NO_ERROR = 0;
