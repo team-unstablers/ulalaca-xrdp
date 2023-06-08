@@ -8,6 +8,8 @@
 
 #include "ProjectorClient.hpp"
 
+const std::string XrdpUlalacaPrivate::XRDP_ULALACA_VERSION = "0.1.1-git";
+
 XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
         _mod(mod),
         _error(0),
@@ -65,6 +67,9 @@ void XrdpUlalacaPrivate::attachToSession(std::string sessionPath) {
     );
 
     _projectorClient->start();
+
+    _projectorClient->sendHello(XRDP_ULALACA_VERSION, _clientInfo);
+
     _isUpdateThreadRunning = true;
     _updateThread = std::make_unique<std::thread>(
         &XrdpUlalacaPrivate::updateThreadLoop, this
