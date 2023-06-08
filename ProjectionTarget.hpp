@@ -20,7 +20,13 @@ public:
         int32_t width, int32_t height
     ) = 0;
 
+    virtual void streamWillStart(uint8_t type, uint64_t resourceId) = 0;
+    virtual void streamDataReceived(uint8_t type, uint64_t resourceId, const uint8_t *data, size_t size) = 0;
+    virtual void streamWillEnd(uint8_t type, uint64_t resourceId) = 0;
+
+    virtual void ipcConnected() = 0;
     virtual void ipcDisconnected() = 0;
+    virtual void ipcError(int reason) = 0;
 };
 
 #endif //ULALACA_PROJECTIONCONTEXT_HPP
