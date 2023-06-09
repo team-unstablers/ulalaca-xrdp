@@ -6,6 +6,8 @@
 #include <config_ac.h>
 #endif
 
+#include <cstring>
+
 extern "C" {
 #include "arch.h"
 #include "parse.h"
@@ -46,6 +48,32 @@ void ProjectorClient::stop() {
     }
     
     _ipcConnection.disconnect();
+}
+
+void ProjectorClient::sendHello(const std::string &xrdpUlalacaVersion, const xrdp_client_info &clientInfo) {
+    if (_isTerminated) {
+        return;
+    }
+
+    if (!_ipcConnection.isGood()) {
+        _target.ipcDisconnected();
+        this->stop();
+        return;
+    }
+
+    ULIPCProjectionHello message { 0 };
+
+    strncpy((char *) &message.xrdpUlalacaVersion, xrdpUlalacaVersion.c_str(), sizeof(message.xrdpUlalacaVersion));
+    strncpy((char *) &message.clientAddress, clientInfo.client_ip, sizeof(message.clientAddress));
+    strncpy((char *) &message.clientDescription, clientInfo.client_description, sizeof(message.clientDescription));
+    strncpy((char *) &message.program, clientInfo.program, sizeof(message.program));
+
+    message.clientOSMajor = clientInfo.client_os_major;
+    message.clientOSMinor = clientInfo.client_os_minor;
+    message.codec = 0; // FIXME
+    message.flags = 0;
+
+    _ipcConnection.writeMessage(TYPE_PROJECTION_HELLO, message);
 }
 
 void ProjectorClient::handleEvent(XrdpEvent &event) {
