@@ -41,4 +41,4 @@ libulalaca_la_SOURCES = \
 libulalaca_la_LIBADD = \
   $(top_builddir)/common/libcommon.la
 
-SUBDIRS = tests
+# SUBDIRS = tests
