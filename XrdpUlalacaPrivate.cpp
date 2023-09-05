@@ -98,12 +98,14 @@ std::shared_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
     int rectSize
 ) const {
     auto blocks = std::make_shared<std::vector<ULIPCRect>>();
-    blocks->reserve((_sessionSize.width * _sessionSize.height) / (rectSize * rectSize));
 
     if (rectSize == RECT_SIZE_BYPASS_CREATE) {
+        blocks->reserve(dirtyRects.size());
         std::copy(dirtyRects.begin(), dirtyRects.end(), std::back_insert_iterator(*blocks));
         return std::move(blocks);
     }
+
+    blocks->reserve((_sessionSize.width * _sessionSize.height) / (rectSize * rectSize));
 
     int mapWidth  = std::ceil((float) _sessionSize.width / (float) rectSize);
     int mapHeight = std::ceil((float) _sessionSize.height / (float) rectSize);
