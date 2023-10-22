@@ -102,7 +102,7 @@ std::shared_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
 
     if (rectSize == RECT_SIZE_BYPASS_CREATE) {
         std::copy(dirtyRects.begin(), dirtyRects.end(), std::back_insert_iterator(*blocks));
-        return std::move(blocks);
+        return blocks;
     }
 
     int mapWidth  = std::ceil((float) _sessionSize.width / (float) rectSize);
@@ -146,7 +146,7 @@ std::shared_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
         }
     }
 
-    return std::move(blocks);
+    return blocks;
 }
 
 bool XrdpUlalacaPrivate::isRectOverlaps(const ULIPCRect &a, const ULIPCRect &b) {
@@ -181,41 +181,6 @@ void XrdpUlalacaPrivate::mergeRect(ULIPCRect &a, const ULIPCRect &b) {
     a.y = std::min(a_y1, b_y1);
     a.width  = std::max(a_x2, b_x2) - a.x;
     a.height = std::max(a_y2, b_y2) - a.y;
-}
-
-std::vector<ULIPCRect> XrdpUlalacaPrivate::removeRectOverlap(const ULIPCRect &a, const ULIPCRect &b) {
-
-}
-
-void XrdpUlalacaPrivate::addDirtyRect(ULIPCRect &rect) {
-    for (auto &x: *_dirtyRects) {
-        if (isRectOverlaps(x, rect)) {
-            mergeRect(x, rect);
-            return;
-        }
-    }
-
-
-    _dirtyRects->push_back(rect);
-}
-
-void XrdpUlalacaPrivate::commitUpdate(const uint8_t *image, size_t size, int32_t width, int32_t height) {
-    std::shared_ptr<uint8_t> tmp((uint8_t *) g_malloc(size, 0), g_free);
-    memmove(tmp.get(), image, size);
-
-    auto dirtyRects = _dirtyRects;
-    _dirtyRects = std::make_shared<std::vector<ULIPCRect>>();
-
-    auto now = std::chrono::steady_clock::now();
-    _updateQueue.emplace(ScreenUpdate {
-            std::chrono::duration<double>(now.time_since_epoch()).count(),
-            tmp, size, width, height, dirtyRects
-    });
-}
-
-void XrdpUlalacaPrivate::ipcDisconnected() {
-    LOG(LOG_LEVEL_WARNING, "ipc disconnected");
-    _error = 1;
 }
 
 void XrdpUlalacaPrivate::updateThreadLoop() {
