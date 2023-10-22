@@ -61,7 +61,7 @@ void ProjectorClient::sendHello(const std::string &xrdpUlalacaVersion, const xrd
         return;
     }
 
-    ULIPCProjectionHello message { 0 };
+    ULIPCProjectionHello message {};
 
     strncpy((char *) &message.xrdpUlalacaVersion, xrdpUlalacaVersion.c_str(), sizeof(message.xrdpUlalacaVersion));
     strncpy((char *) &message.clientAddress, clientInfo.client_ip, sizeof(message.clientAddress));
@@ -102,7 +102,7 @@ void ProjectorClient::handleEvent(XrdpEvent &event) {
             eventType, (uint32_t) cgKeycode, 0
         });
     } else if (event.type == XrdpEvent::KEY_SYNCHRONIZE_LOCK) {
-        auto lockStatus = event.param1;
+        [[maybe_unused]] auto lockStatus = event.param1;
     }
     
     if (event.isMouseEvent()) {
@@ -170,24 +170,6 @@ void ProjectorClient::handleEvent(XrdpEvent &event) {
                 break;
         }
     
-    }
-    
-    
-    if (event.type == XrdpEvent::INVALIDATE_REQUEST) {
-        uint16_t x1 = HIWORD(event.param1);
-        uint16_t y1 = LOWORD(event.param1);
-        uint16_t x2 = HIWORD(event.param2);
-        uint16_t y2 = LOWORD(event.param2);
-        
-        // TODO: redraw(rect)?
-    }
-    
-    if (event.type == XrdpEvent::CHANNEL_EVENT) {
-        uint16_t channelId = LOWORD(event.param1);
-        uint16_t flags = HIWORD(event.param1);
-        auto size = (int) event.param2;
-        auto data = (char *) event.param3;
-        auto total_size = (int) event.param4;
     }
 }
 
