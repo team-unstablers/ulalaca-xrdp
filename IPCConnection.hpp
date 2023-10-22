@@ -54,7 +54,9 @@ public:
 
     template<typename T>
     std::unique_ptr<T, MallocFreeDeleter> read(size_t size) {
-        assert(size != 0);
+        if (size == 0) {
+            return nullptr;
+        }
 
         auto promise = std::make_shared<std::promise<std::unique_ptr<uint8_t>>>();
         {

@@ -6,7 +6,8 @@ AM_CPPFLAGS = \
   -I$(top_srcdir)/common
 
 AM_CXXFLAGS = \
-  --std=c++17
+  --std=c++17 \
+  -Wall -Wextra -Werror
 
 module_LTLIBRARIES = \
   libulalaca.la
@@ -14,8 +15,6 @@ module_LTLIBRARIES = \
 libulalaca_la_SOURCES = \
   UnixSocket.cpp \
   UnixSocket.hpp \
-  SocketStream.cpp \
-  SocketStream.hpp \
   SystemCallException.cpp \
   SystemCallException.hpp \
   XrdpEvent.hpp \

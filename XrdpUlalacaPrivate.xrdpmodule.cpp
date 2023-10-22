@@ -147,7 +147,7 @@ int XrdpUlalacaPrivate::libModSessionChange(int, int) {
     return 0;
 }
 
-int XrdpUlalacaPrivate::libModGetWaitObjs(tbus *readObjs, int *rcount, tbus *writeObjs, int *wcount, int *timeout) {
+int XrdpUlalacaPrivate::libModGetWaitObjs(tbus *readObjs, int *rcount, tbus *writeObjs, int *wcount, [[maybe_unused]] int *timeout) {
     // FIXME
     if (!_isUpdateThreadRunning) {
         return 0;
@@ -168,22 +168,25 @@ int XrdpUlalacaPrivate::libModCheckWaitObjs() {
     return 0;
 }
 
-int XrdpUlalacaPrivate::libModFrameAck(int flags, int frameId) {
+int XrdpUlalacaPrivate::libModFrameAck([[maybe_unused]] int flags, int frameId) {
     LOG(LOG_LEVEL_TRACE, "lib_mod_frame_ack() called: %d", frameId);
     _ackFrameId = frameId;
 
     return 0;
 }
 
-int XrdpUlalacaPrivate::libModSuppressOutput(int suppress, int left, int top, int right, int bottom) {
+int XrdpUlalacaPrivate::libModSuppressOutput([[maybe_unused]] int suppress,
+                                             [[maybe_unused]] int left, [[maybe_unused]] int top,
+                                             [[maybe_unused]] int right, [[maybe_unused]] int bottom) {
+    LOG(LOG_LEVEL_TRACE, "suppressing partial output is not supported");
     return 0;
 }
 
-int XrdpUlalacaPrivate::libModServerMonitorResize(int width, int height) {
+int XrdpUlalacaPrivate::libModServerMonitorResize([[maybe_unused]] int width, [[maybe_unused]] int height) {
     return 0;
 }
 
-int XrdpUlalacaPrivate::libModServerMonitorFullInvalidate(int width, int height) {
+int XrdpUlalacaPrivate::libModServerMonitorFullInvalidate([[maybe_unused]] int width, [[maybe_unused]] int height) {
     _fullInvalidate = true;
     return 0;
 }

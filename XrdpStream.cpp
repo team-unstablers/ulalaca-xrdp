@@ -11,7 +11,7 @@
 static inline XrdpStream::Stream *createXrdpStreamInternal(size_t size) {
     XrdpStream::Stream *stream;
     make_stream(stream);
-    init_stream(stream, size);
+    init_stream(stream, (int) size);
     
     return stream;
 }

@@ -50,11 +50,10 @@ public:
 
     static bool isRectOverlaps(const ULIPCRect &a, const ULIPCRect &b);
     static void mergeRect(ULIPCRect &a, const ULIPCRect &b);
-    static std::vector<ULIPCRect> removeRectOverlap(const ULIPCRect &a, const ULIPCRect &b);
 
     explicit XrdpUlalacaPrivate(XrdpUlalaca *mod);
     XrdpUlalacaPrivate(XrdpUlalacaPrivate &) = delete;
-    ~XrdpUlalacaPrivate();
+    ~XrdpUlalacaPrivate() override;
 
     /* lib_mod_* */
     int libModStart(int width, int height, int bpp);

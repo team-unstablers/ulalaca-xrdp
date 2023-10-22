@@ -67,6 +67,7 @@ UnixSocket::UnixSocket(const std::string path):
 {
 }
 
+
 void UnixSocket::bind() {
     if (std::filesystem::exists(_path)) {
         if (!std::filesystem::is_socket(_path)) {
