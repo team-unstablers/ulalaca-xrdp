@@ -7,7 +7,7 @@ AM_CPPFLAGS = \
 
 AM_CXXFLAGS = \
   --std=c++17 \
-  -Wall -Wextra  # TODO: enable -Werror
+  -Wall -Wextra -Werror
 
 module_LTLIBRARIES = \
   libulalaca.la
