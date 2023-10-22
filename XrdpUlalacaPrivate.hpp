@@ -53,7 +53,7 @@ public:
 
     explicit XrdpUlalacaPrivate(XrdpUlalaca *mod);
     XrdpUlalacaPrivate(XrdpUlalacaPrivate &) = delete;
-    ~XrdpUlalacaPrivate();
+    ~XrdpUlalacaPrivate() override;
 
     /* lib_mod_* */
     int libModStart(int width, int height, int bpp);

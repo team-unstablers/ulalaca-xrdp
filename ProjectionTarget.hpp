@@ -12,6 +12,8 @@
 
 class ProjectionTarget {
 public:
+    virtual ~ProjectionTarget() = 0;
+
     virtual void addDirtyRect(ULIPCRect &rect) = 0;
     
     virtual void commitUpdate(

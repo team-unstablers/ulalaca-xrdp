@@ -18,6 +18,7 @@ using FD = int;
 
 class UnixSocketBase {
 public:
+    virtual ~UnixSocketBase() = 0;
 
     /**
      * 파일 디스크립터를 반환합니다.
@@ -61,17 +62,21 @@ public:
 class UnixSocketConnection: public UnixSocketBase {
 public:
     explicit UnixSocketConnection(FD descriptor, sockaddr_un clientAddress);
+    ~UnixSocketConnection() override = default;
 
     FD descriptor() override;
 
 private:
     FD _descriptor;
+
+    [[maybe_unused]]
     sockaddr_un _clientAddress;
 };
 
 class UnixSocket: public UnixSocketBase {
 public:
     explicit UnixSocket(const std::string path);
+    ~UnixSocket() override = default;
 
     /**
      * bind(2)를 호출합니다.
