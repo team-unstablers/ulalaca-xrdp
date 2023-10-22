@@ -19,12 +19,13 @@ extern "C" {
 #include "IPCConnection.hpp"
 
 IPCConnection::IPCConnection(std::shared_ptr<UnixSocket> socket):
-    _socket(std::move(socket)),
-    _isWorkerTerminated(false),
-
-    _workerThread(),
     _messageId(0),
     _ackId(0),
+
+    _socket(std::move(socket)),
+    _workerThread(),
+    _isWorkerTerminated(false),
+
     _isGood(true)
 {
 
@@ -66,7 +67,7 @@ bool IPCConnection::isGood() const {
 }
 
 std::unique_ptr<ULIPCHeader, IPCConnection::MallocFreeDeleter> IPCConnection::nextHeader() {
-    return std::move(read<ULIPCHeader>(sizeof(ULIPCHeader)));
+    return read<ULIPCHeader>(sizeof(ULIPCHeader));
 }
 
 void IPCConnection::write(const void *pointer, size_t size) {
