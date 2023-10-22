@@ -15,8 +15,6 @@ module_LTLIBRARIES = \
 libulalaca_la_SOURCES = \
   UnixSocket.cpp \
   UnixSocket.hpp \
-  SocketStream.cpp \
-  SocketStream.hpp \
   SystemCallException.cpp \
   SystemCallException.hpp \
   XrdpEvent.hpp \
