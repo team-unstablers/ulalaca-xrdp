@@ -85,5 +85,5 @@ SessionBrokerResponse SessionBrokerClient::requestSession(const std::string &use
 
     connection.disconnect();
 
-    return std::move(response);
+    return response;
 }
