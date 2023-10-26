@@ -272,7 +272,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
         auto copyRectSize = decideCopyRectSize();
 
 #ifdef XRDP_TUMOD_ENCODER_HINTS_AVAILABLE
-        int paintFlags = XRDP_ENCODER_HINT_QUALITY_LOW;
+        int paintFlags = XRDP_ENCODER_HINT_QUALITY_AUTO;
 #else
         int paintFlags = 0;
 #endif
@@ -315,6 +315,8 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
 
             _fullInvalidate = false;
         }
+
+        this->drawDebugStatistics(dirtyRects->size(), tdelta);
 
         _mod->server_end_update(_mod);
     }

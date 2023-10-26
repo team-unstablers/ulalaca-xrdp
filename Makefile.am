@@ -36,6 +36,7 @@ libulalaca_la_SOURCES = \
   ULCGTextRenderer.hpp \
   XrdpUlalacaPrivate.cpp \
   XrdpUlalacaPrivate.xrdpmodule.cpp \
+  XrdpUlalacaPrivate.debug.cpp \
   XrdpUlalacaPrivate.hpp \
   ulalaca.cpp \
   ulalaca.hpp

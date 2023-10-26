@@ -106,6 +106,16 @@ public:
     inline bool isGFXH264Codec() const;
     inline bool isRawBitmap() const;
 
+    bool isDebugStatisticsEnabled() const;
+    void setDebugStatisticsEnabled(bool enabled);
+
+    void drawDebugText(const std::string &text, size_t fontSize, int x, int y);
+    void drawDebugStatistics(size_t dirtyRectsSize, double timedelta);
+
+    /**
+     *
+     */
+
 private:
     XrdpUlalaca *_mod;
     int _error = 0;
@@ -140,6 +150,7 @@ private:
 
     std::queue<ScreenUpdate> _updateQueue;
 
+    bool _isDebugStatisticsEnabled;
 };
 
 #endif
