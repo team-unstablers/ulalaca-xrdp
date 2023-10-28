@@ -333,6 +333,9 @@ namespace ulalaca {
             0
         );
 
+
+        _pendingRects.clear();
+
         return true;
     }
 
