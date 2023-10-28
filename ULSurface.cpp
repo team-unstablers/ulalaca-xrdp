@@ -163,6 +163,14 @@ namespace ulalaca {
 
     }
 
+    int ULSurface::width() const {
+        return _width;
+    }
+
+    int ULSurface::height() const {
+        return _height;
+    }
+
     void ULSurface::setSize(int width, int height) {
         _width = width;
         _height = height;

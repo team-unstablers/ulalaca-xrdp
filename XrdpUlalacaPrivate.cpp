@@ -7,20 +7,19 @@
 #include "XrdpUlalacaPrivate.hpp"
 
 #include "ProjectorClient.hpp"
+#include "ULSurface.hpp"
 
 const std::string XrdpUlalacaPrivate::XRDP_ULALACA_VERSION = "0.1.1-git";
 
 XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
         _mod(mod),
+
         _error(0),
 
         _sessionSize(),
         _screenLayouts(),
 
         _bpp(0),
-
-        _frameId(0),
-        _ackFrameId(0),
 
         _username(),
         _password(),
@@ -39,7 +38,8 @@ XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
         _fullInvalidate(true),
         _commitUpdateLock(),
 
-        _dirtyRects(std::make_shared<std::vector<ULIPCRect>>())
+        _dirtyRects(std::make_shared<std::vector<ULIPCRect>>()),
+        _surface(std::make_unique<ulalaca::ULSurface>(mod))
 {
 }
 
@@ -75,9 +75,10 @@ void XrdpUlalacaPrivate::attachToSession(std::string sessionPath) {
         &XrdpUlalacaPrivate::updateThreadLoop, this
     );
 
-    LOG(LOG_LEVEL_TRACE, "sessionSize: %d, %d", _sessionSize.width, _sessionSize.height);
     _projectorClient->setViewport(_sessionSize);
     _projectorClient->setOutputSuppression(false);
+
+    _surface->setCRectSize(decideCopyRectSize());
 }
 
 int XrdpUlalacaPrivate::decideCopyRectSize() const {
@@ -87,109 +88,15 @@ int XrdpUlalacaPrivate::decideCopyRectSize() const {
 
     if (isNSCodec() || isH264Codec() || isGFXH264Codec()) {
         // ??? FIXME
-        return RECT_SIZE_BYPASS_CREATE;
+        return ulalaca::ULSurface::RECT_SIZE_BYPASS_CREATE;
     }
 
-    return RECT_SIZE_BYPASS_CREATE;
-}
-
-std::shared_ptr<std::vector<ULIPCRect>> XrdpUlalacaPrivate::createCopyRects(
-    std::vector<ULIPCRect> &dirtyRects,
-    int rectSize
-) const {
-    auto blocks = std::make_shared<std::vector<ULIPCRect>>();
-
-    if (rectSize == RECT_SIZE_BYPASS_CREATE) {
-        blocks->reserve(dirtyRects.size());
-        std::copy(dirtyRects.begin(), dirtyRects.end(), std::back_insert_iterator(*blocks));
-        return std::move(blocks);
-    }
-
-    blocks->reserve((_sessionSize.width * _sessionSize.height) / (rectSize * rectSize));
-
-    int mapWidth  = std::ceil((float) _sessionSize.width / (float) rectSize);
-    int mapHeight = std::ceil((float) _sessionSize.height / (float) rectSize);
-    int mapSize = mapWidth * mapHeight;
-    std::unique_ptr<uint8_t> rectMap(new uint8_t[mapSize]);
-    memset(rectMap.get(), 0x00, mapSize);
-
-    for (auto &dirtyRect : dirtyRects) {
-        if (_sessionSize.width <= dirtyRect.x ||
-            _sessionSize.height <= dirtyRect.y) {
-            continue;
-        }
-
-        int mapX1 = (int) std::floor((float) dirtyRect.x / rectSize);
-        int mapY1 = (int) std::floor((float) dirtyRect.y / rectSize);
-        int mapX2 = std::min(
-                (int) std::ceil((float) (dirtyRect.x + dirtyRect.width) / rectSize),
-                mapWidth
-        ) - 1;
-        int mapY2 = std::min(
-                (int) std::ceil((float) (dirtyRect.y + dirtyRect.height) / rectSize),
-                mapHeight
-        ) - 1;
-
-        for (int y = mapY1; y <= mapY2; y++) {
-            for (int x = mapX1; x <= mapX2; x++) {
-                rectMap.get()[(y * mapWidth) + x] = 0x01;
-            }
-        }
-    }
-
-    for (int y = 0; y < mapHeight; y++) {
-        for (int x = 0; x < mapWidth; x++) {
-            if (rectMap.get()[(y * mapWidth) + x] == 0x01) {
-                int rectX = x * rectSize;
-                int rectY = y * rectSize;
-
-                blocks->emplace_back(ULIPCRect{(short) rectX, (short) rectY, (short) rectSize, (short) rectSize});
-            }
-        }
-    }
-
-    return std::move(blocks);
-}
-
-bool XrdpUlalacaPrivate::isRectOverlaps(const ULIPCRect &a, const ULIPCRect &b) {
-    int16_t a_x1 = a.x;
-    int16_t a_x2 = a.x + a.width;
-    int16_t a_y1 = a.y;
-    int16_t a_y2 = a.y + a.height;
-    int16_t b_x1 = b.x;
-    int16_t b_x2 = b.x + b.width;
-    int16_t b_y1 = b.y;
-    int16_t b_y2 = b.y + b.height;
-
-    return (
-            (a_x1 >= b_x1 && a_x1 <= b_x2 && a_y1 >= b_y1 && a_y1 <= b_y2) ||
-            (a_x2 >= b_x1 && a_x2 <= b_x2 && a_y1 >= b_y1 && a_y1 <= b_y2) ||
-            (a_x1 >= b_x1 && a_x1 <= b_x2 && a_y2 >= b_y1 && a_y2 <= b_y2) ||
-            (a_x2 >= b_x1 && a_x2 <= b_x2 && a_y2 >= b_y1 && a_y2 <= b_y2)
-    );
-}
-
-void XrdpUlalacaPrivate::mergeRect(ULIPCRect &a, const ULIPCRect &b) {
-    int16_t a_x1 = a.x;
-    int16_t a_x2 = a.x + a.width;
-    int16_t a_y1 = a.y;
-    int16_t a_y2 = a.y + a.height;
-    int16_t b_x1 = b.x;
-    int16_t b_x2 = b.x + b.width;
-    int16_t b_y1 = b.y;
-    int16_t b_y2 = b.y + b.height;
-
-    a.x = std::min(a_x1, b_x1);
-    a.y = std::min(a_y1, b_y1);
-    a.width  = std::max(a_x2, b_x2) - a.x;
-    a.height = std::max(a_y2, b_y2) - a.y;
-}
-
-std::vector<ULIPCRect> XrdpUlalacaPrivate::removeRectOverlap(const ULIPCRect &a, const ULIPCRect &b) {
-
+    return ulalaca::ULSurface::RECT_SIZE_BYPASS_CREATE;
 }
 
 void XrdpUlalacaPrivate::addDirtyRect(ULIPCRect &rect) {
+    // TODO: REMOVE THIS
+    /*
     for (auto &x: *_dirtyRects) {
         if (isRectOverlaps(x, rect)) {
             mergeRect(x, rect);
@@ -198,6 +105,8 @@ void XrdpUlalacaPrivate::addDirtyRect(ULIPCRect &rect) {
     }
 
 
+    _dirtyRects->push_back(rect);
+     */
     _dirtyRects->push_back(rect);
 }
 
@@ -226,6 +135,7 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
     while (_isUpdateThreadRunning) {
         while (_updateQueue.empty()) {
             using namespace std::chrono_literals;
+            // TODO: use condition_variable
             std::this_thread::sleep_for(4ms);
         }
 
@@ -327,6 +237,11 @@ void XrdpUlalacaPrivate::setSessionSize(int width, int height) {
             0, 0, (short) width, (short) height
     });
     calculateSessionSize();
+
+    _surface->setSize(_sessionSize.width, _sessionSize.height);
+    if (_projectorClient != nullptr) {
+        _projectorClient->setViewport(_sessionSize);
+    }
 }
 
 void XrdpUlalacaPrivate::calculateSessionSize() {

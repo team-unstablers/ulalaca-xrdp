@@ -39,6 +39,10 @@ struct ScreenUpdate {
     std::shared_ptr<std::vector<ULIPCRect>> dirtyRects;
 };
 
+namespace ulalaca {
+    class ULSurface;
+}
+
 class XrdpUlalacaPrivate: public ProjectionTarget {
 public:
     // FIXME: is there TWO VERSION FIELDS??? (see ulalaca.hpp)
@@ -82,10 +86,7 @@ public:
      */
     void attachToSession(std::string sessionPath);
 
-
-    /* paint related */
     int decideCopyRectSize() const;
-    std::shared_ptr<std::vector<ULIPCRect>> createCopyRects(std::vector<ULIPCRect> &dirtyRects, int rectSize) const;
 
     void addDirtyRect(ULIPCRect &rect) override;
     void commitUpdate(const uint8_t *image, size_t size, int32_t width, int32_t height) override;
@@ -108,6 +109,7 @@ public:
 
 private:
     XrdpUlalaca *_mod;
+
     int _error = 0;
     bool _isUpdateThreadRunning;
 
@@ -115,9 +117,6 @@ private:
     std::vector<ULIPCRect> _screenLayouts;
 
     int _bpp;
-
-    std::atomic_int64_t _frameId;
-    std::atomic_int64_t _ackFrameId;
 
     std::string _username;
     std::string _password;
@@ -129,6 +128,7 @@ private:
     int _encodingsMask;
     xrdp_client_info _clientInfo;
 
+
     std::unique_ptr<UnixSocket> _socket;
     std::unique_ptr<ProjectorClient> _projectorClient;
     std::unique_ptr<std::thread> _updateThread;
@@ -137,6 +137,7 @@ private:
     std::mutex _commitUpdateLock;
 
     std::shared_ptr<std::vector<ULIPCRect>> _dirtyRects;
+    std::unique_ptr<ulalaca::ULSurface> _surface;
 
     std::queue<ScreenUpdate> _updateQueue;
 

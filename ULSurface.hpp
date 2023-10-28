@@ -44,6 +44,9 @@ namespace ulalaca {
 
         explicit ULSurface(XrdpUlalaca *mod);
 
+        int width() const;
+        int height() const;
+
         void setSize(int width, int height);
         void setCRectSize(int crectSize);
 
