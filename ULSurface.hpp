@@ -136,6 +136,8 @@ namespace ulalaca {
         std::vector<ULIPCRect> _pendingRects;
 
         std::thread::id _updateThreadId;
+
+        bool __HACK__mstsc_workaround;
     };
 }
 

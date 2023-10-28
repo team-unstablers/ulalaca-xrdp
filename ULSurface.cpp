@@ -202,10 +202,12 @@ namespace ulalaca {
 
         _crectSize(RECT_SIZE_BYPASS_CREATE),
 
-        _frameId(1),
+        _frameId(0),
         _ackFrameId(0),
 
-        _updateThreadId()
+        _updateThreadId(),
+
+        __HACK__mstsc_workaround(true)
     {
 
     }
@@ -271,6 +273,22 @@ namespace ulalaca {
         }
 
         if (rects.empty()) {
+            return;
+        }
+
+        if (__HACK__mstsc_workaround) {
+            // we should draw entire screen at least once to make mstsc.exe happy
+            __HACK__mstsc_workaround = false;
+
+            _mod->server_paint_rect(
+                    _mod,
+                    0, 0,
+                    _width, _height,
+                    (char *) bitmap,
+                    bitmapWidth, bitmapHeight,
+                    0, (_frameId++ % INT32_MAX)
+            );
+
             return;
         }
 
