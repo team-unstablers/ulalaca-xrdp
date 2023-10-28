@@ -1,6 +1,9 @@
 #ifndef XRDP_XRDPULALACAPRIVATE_HPP
 #define XRDP_XRDPULALACAPRIVATE_HPP
 
+#include <queue>
+#include <mutex>
+
 #if defined(HAVE_CONFIG_H)
 #include <config_ac.h>
 #endif
@@ -14,9 +17,6 @@ extern "C" {
 #include "xrdp_client_info.h"
 };
 
-#include <queue>
-#include <mutex>
-
 #include "XrdpEvent.hpp"
 #include "XrdpTransport.hpp"
 #include "XrdpStream.hpp"
@@ -28,34 +28,24 @@ extern "C" {
 struct XrdpUlalaca;
 class ProjectorClient;
 
-struct ScreenUpdate {
-    double timestamp;
-
-    std::shared_ptr<uint8_t> image;
-    size_t size;
-    int32_t width;
-    int32_t height;
-
-    std::shared_ptr<std::vector<ULIPCRect>> dirtyRects;
-};
+namespace ulalaca {
+    class ULSurfaceTransaction;
+    class ULSurface;
+}
 
 class XrdpUlalacaPrivate: public ProjectionTarget {
 public:
     // FIXME: is there TWO VERSION FIELDS??? (see ulalaca.hpp)
     static const std::string XRDP_ULALACA_VERSION;
 
-    constexpr static const int RECT_SIZE_BYPASS_CREATE = 0;
 
     constexpr static const int NO_ERROR = 0;
-
-    static bool isRectOverlaps(const ULIPCRect &a, const ULIPCRect &b);
-    static void mergeRect(ULIPCRect &a, const ULIPCRect &b);
-    static std::vector<ULIPCRect> removeRectOverlap(const ULIPCRect &a, const ULIPCRect &b);
 
     explicit XrdpUlalacaPrivate(XrdpUlalaca *mod);
     XrdpUlalacaPrivate(XrdpUlalacaPrivate &) = delete;
     ~XrdpUlalacaPrivate();
 
+public:
     /* lib_mod_* */
     int libModStart(int width, int height, int bpp);
     int libModConnect();
@@ -74,6 +64,7 @@ public:
     int libModServerMonitorFullInvalidate(int width, int height);
     int libModServerVersionMessage();
 
+public:
     /* utility methods / lib_server_* wrappers */
     void serverMessage(const char *message, int code);
 
@@ -82,10 +73,7 @@ public:
      */
     void attachToSession(std::string sessionPath);
 
-
-    /* paint related */
     int decideCopyRectSize() const;
-    std::shared_ptr<std::vector<ULIPCRect>> createCopyRects(std::vector<ULIPCRect> &dirtyRects, int rectSize) const;
 
     void addDirtyRect(ULIPCRect &rect) override;
     void commitUpdate(const uint8_t *image, size_t size, int32_t width, int32_t height) override;
@@ -108,6 +96,7 @@ public:
 
 private:
     XrdpUlalaca *_mod;
+
     int _error = 0;
     bool _isUpdateThreadRunning;
 
@@ -115,9 +104,6 @@ private:
     std::vector<ULIPCRect> _screenLayouts;
 
     int _bpp;
-
-    std::atomic_int64_t _frameId;
-    std::atomic_int64_t _ackFrameId;
 
     std::string _username;
     std::string _password;
@@ -131,15 +117,17 @@ private:
 
     std::unique_ptr<UnixSocket> _socket;
     std::unique_ptr<ProjectorClient> _projectorClient;
+
+    std::unique_ptr<ulalaca::ULSurface> _surface;
+
+    std::vector<ULIPCRect> _dirtyRects;
+
     std::unique_ptr<std::thread> _updateThread;
+    tintptr _updateWaitObj;
 
-    std::atomic_bool _fullInvalidate;
-    std::mutex _commitUpdateLock;
-
-    std::shared_ptr<std::vector<ULIPCRect>> _dirtyRects;
-
-    std::queue<ScreenUpdate> _updateQueue;
-
+    std::mutex _updateQueueMutex;
+    std::condition_variable _updateQueueCondvar;
+    std::queue<std::unique_ptr<ulalaca::ULSurfaceTransaction>> _updateQueue;
 };
 
 #endif
