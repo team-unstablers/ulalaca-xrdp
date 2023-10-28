@@ -48,18 +48,14 @@ public:
     // FIXME: is there TWO VERSION FIELDS??? (see ulalaca.hpp)
     static const std::string XRDP_ULALACA_VERSION;
 
-    constexpr static const int RECT_SIZE_BYPASS_CREATE = 0;
 
     constexpr static const int NO_ERROR = 0;
-
-    static bool isRectOverlaps(const ULIPCRect &a, const ULIPCRect &b);
-    static void mergeRect(ULIPCRect &a, const ULIPCRect &b);
-    static std::vector<ULIPCRect> removeRectOverlap(const ULIPCRect &a, const ULIPCRect &b);
 
     explicit XrdpUlalacaPrivate(XrdpUlalaca *mod);
     XrdpUlalacaPrivate(XrdpUlalacaPrivate &) = delete;
     ~XrdpUlalacaPrivate();
 
+public:
     /* lib_mod_* */
     int libModStart(int width, int height, int bpp);
     int libModConnect();
@@ -78,6 +74,7 @@ public:
     int libModServerMonitorFullInvalidate(int width, int height);
     int libModServerVersionMessage();
 
+public:
     /* utility methods / lib_server_* wrappers */
     void serverMessage(const char *message, int code);
 
@@ -140,7 +137,6 @@ private:
     std::unique_ptr<ulalaca::ULSurface> _surface;
 
     std::queue<ScreenUpdate> _updateQueue;
-
 };
 
 #endif

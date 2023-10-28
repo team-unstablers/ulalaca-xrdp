@@ -148,85 +148,16 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
         _updateQueue.pop();
         _commitUpdateLock.unlock();
 
+        ulalaca::ULSurfaceTransaction transaction;
+        transaction.addRects(*update.dirtyRects);
+        transaction.setBitmap(update.image, update.size, update.width, update.height);
+        transaction.setTimestamp(update.timestamp);
 
-        auto now = std::chrono::steady_clock::now();
-        auto tdelta = std::chrono::duration<double>(now.time_since_epoch()).count() - update.timestamp;
-
-        auto width = update.width;
-        auto height = update.height;
-        auto dirtyRects = update.dirtyRects;
-        auto image = update.image;
-
-        if (tdelta > 1.0 / 30.0 || _updateQueue.size() > 2 || std::abs(_frameId - _ackFrameId) > 1) {
-            LOG(LOG_LEVEL_INFO, "skipping frame (tdelta = %.4f)", tdelta);
-            skippedRects.insert(skippedRects.end(), dirtyRects->begin(), dirtyRects->end());
-            continue;
-        } else {
-            dirtyRects->insert(dirtyRects->end(), skippedRects.begin(), skippedRects.end());
-            skippedRects.clear();
+        _surface->beginUpdate();
+        if (!_surface->submitUpdate(transaction)) {
+            // log("frame dropped");
         }
-
-        // LOG(LOG_LEVEL_TRACE, "updating screen: [%.4f] %d, %d", update.timestamp, update.width, update.height);
-
-        if (_sessionSize.width != update.width || _sessionSize.height != update.height) {
-            // server_reset(this, width, height, _bpp);
-        }
-
-        if (_frameId > 0 && dirtyRects->empty()) {
-            continue;
-        }
-
-        _mod->server_begin_update(_mod);
-
-        ULIPCRect screenRect {0, 0, (short) width, (short) height};
-        auto copyRectSize = decideCopyRectSize();
-
-#ifdef XRDP_TUMOD_ENCODER_HINTS_AVAILABLE
-        int paintFlags = XRDP_ENCODER_HINT_QUALITY_LOW;
-#else
-        int paintFlags = 0;
-#endif
-
-        if (!_fullInvalidate) {
-            auto copyRects = createCopyRects(*dirtyRects, copyRectSize);
-
-            _mod->server_paint_rects(
-                    _mod,
-                    dirtyRects->size(), reinterpret_cast<short *>(dirtyRects->data()),
-                    copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
-                    (char *) image.get(),
-                    width, height,
-                    paintFlags, (_frameId++ % INT32_MAX)
-            );
-        } else {
-            // paint entire screen
-            auto dirtyRects = std::vector<ULIPCRect> { screenRect } ;
-            auto copyRects = createCopyRects(dirtyRects, copyRectSize);
-
-            if (isRawBitmap()) {
-                _mod->server_paint_rect(
-                        _mod,
-                        screenRect.x, screenRect.y,
-                        screenRect.width, screenRect.height,
-                        (char *) image.get(),
-                        screenRect.width, screenRect.height,
-                        0, 0
-                );
-            } else {
-                _mod->server_paint_rects(
-                        _mod,
-                        dirtyRects.size(), reinterpret_cast<short *>(dirtyRects.data()),
-                        copyRects->size(), reinterpret_cast<short *>(copyRects->data()),
-                        (char *) image.get(),
-                        width, height,
-                        paintFlags, (_frameId++ % INT32_MAX)
-                );
-            }
-
-            _fullInvalidate = false;
-        }
-
-        _mod->server_end_update(_mod);
+        _surface->endUpdate();
     }
 
 }

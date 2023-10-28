@@ -19,6 +19,53 @@ namespace ulalaca {
         return _message.c_str();
     }
 
+    ULSurfaceTransaction::ULSurfaceTransaction() {
+
+    }
+
+    void ULSurfaceTransaction::setTimestamp(double timestamp) {
+        _timestamp = timestamp;
+    }
+
+    void ULSurfaceTransaction::addRect(const ULIPCRect &rect) {
+        _rects.push_back(rect);
+    }
+
+    void ULSurfaceTransaction::addRects(const std::vector<ULIPCRect> &rects) {
+        _rects.insert(_rects.end(), rects.begin(), rects.end());
+    }
+
+    void ULSurfaceTransaction::setBitmap(std::shared_ptr<uint8_t> bitmap, size_t bitmapSize, int bitmapWidth,
+                                         int bitmapHeight) {
+        _bitmap = std::move(bitmap);
+        _bitmapSize = bitmapSize;
+        _bitmapWidth = bitmapWidth;
+        _bitmapHeight = bitmapHeight;
+    }
+
+    double ULSurfaceTransaction::timestamp() const {
+        return _timestamp;
+    }
+
+    const std::vector<ULIPCRect> &ULSurfaceTransaction::rects() const {
+        return _rects;
+    }
+
+    std::shared_ptr<uint8_t> ULSurfaceTransaction::bitmap() const {
+        return _bitmap;
+    }
+
+    size_t ULSurfaceTransaction::bitmapSize() const {
+        return _bitmapSize;
+    }
+
+    int ULSurfaceTransaction::bitmapWidth() const {
+        return _bitmapWidth;
+    }
+
+    int ULSurfaceTransaction::bitmapHeight() const {
+        return _bitmapHeight;
+    }
 
     bool ULSurface::isRectOverlaps(const ULIPCRect &a, const ULIPCRect &b) {
         int16_t a_x1 = a.x;
@@ -233,27 +280,57 @@ namespace ulalaca {
         std::unique_ptr<short> drects = std::move(allocateRectArray(cleanedRects));
         std::unique_ptr<short> crects = std::move(allocateRectArray(copyRects));
 
-        if (flags & FLAG_FORCE_RAW_BITMAP) {
-            for (const auto &rect: cleanedRects) {
-                _mod->server_paint_rect(
-                    _mod,
-                    rect.x, rect.y,
-                    rect.width, rect.height,
-                    (char *) bitmap,
-                    bitmapWidth, bitmapHeight,
-                    0, (_frameId++ % INT32_MAX)
-                );
-            }
-        } else {
-            _mod->server_paint_rects(
-                _mod,
-                cleanedRects.size(), drects.get(),
-                copyRects.size(), crects.get(),
-                (char *) bitmap,
-                bitmapWidth, bitmapHeight,
-                0, (_frameId++ % INT32_MAX)
-            );
+        _mod->server_paint_rects(
+            _mod,
+            cleanedRects.size(), drects.get(),
+            copyRects.size(), crects.get(),
+            (char *) bitmap,
+            bitmapWidth, bitmapHeight,
+            0, (_frameId++ % INT32_MAX)
+        );
+    }
+
+    void ULSurface::setForegroundColor(int color) {
+        _mod->server_set_fgcolor(_mod, color);
+    }
+
+    void ULSurface::fillRect(int x, int y, int width, int height) {
+        _mod->server_fill_rect(_mod, x, y, width, height);
+    }
+
+    bool ULSurface::submitUpdate(const ULSurfaceTransaction &transaction) {
+        _pendingRects.insert(
+                _pendingRects.end(),
+                transaction.rects().begin(), transaction.rects().end()
+        );
+
+        if (shouldDropFrame(transaction)) {
+            return false;
         }
+
+        this->drawBitmap(
+            _pendingRects,
+            transaction.bitmap().get(), transaction.bitmapSize(),
+            transaction.bitmapWidth(), transaction.bitmapHeight(),
+            0
+        );
+
+        return true;
+    }
+
+    bool ULSurface::shouldDropFrame(const ULSurfaceTransaction &transaction) const {
+        constexpr static const double tdeltaThreshold = 1.0 / 20.0;
+
+        int fdelta = std::abs(_frameId - _ackFrameId);
+
+        auto now = std::chrono::steady_clock::now();
+        double timestamp = std::chrono::duration<double>(now.time_since_epoch()).count();
+        double tdelta = timestamp - transaction.timestamp();
+
+        return (
+            fdelta > 1 ||
+            tdelta > tdeltaThreshold
+        );
     }
 
 
