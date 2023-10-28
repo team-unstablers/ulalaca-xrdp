@@ -1,6 +1,9 @@
 #ifndef XRDP_XRDPULALACAPRIVATE_HPP
 #define XRDP_XRDPULALACAPRIVATE_HPP
 
+#include <queue>
+#include <mutex>
+
 #if defined(HAVE_CONFIG_H)
 #include <config_ac.h>
 #endif
@@ -14,9 +17,6 @@ extern "C" {
 #include "xrdp_client_info.h"
 };
 
-#include <queue>
-#include <mutex>
-
 #include "XrdpEvent.hpp"
 #include "XrdpTransport.hpp"
 #include "XrdpStream.hpp"
@@ -28,18 +28,8 @@ extern "C" {
 struct XrdpUlalaca;
 class ProjectorClient;
 
-struct ScreenUpdate {
-    double timestamp;
-
-    std::shared_ptr<uint8_t> image;
-    size_t size;
-    int32_t width;
-    int32_t height;
-
-    std::shared_ptr<std::vector<ULIPCRect>> dirtyRects;
-};
-
 namespace ulalaca {
+    class ULSurfaceTransaction;
     class ULSurface;
 }
 
@@ -125,18 +115,19 @@ private:
     int _encodingsMask;
     xrdp_client_info _clientInfo;
 
-
     std::unique_ptr<UnixSocket> _socket;
     std::unique_ptr<ProjectorClient> _projectorClient;
-    std::unique_ptr<std::thread> _updateThread;
 
-    std::atomic_bool _fullInvalidate;
-    std::mutex _commitUpdateLock;
-
-    std::shared_ptr<std::vector<ULIPCRect>> _dirtyRects;
     std::unique_ptr<ulalaca::ULSurface> _surface;
 
-    std::queue<ScreenUpdate> _updateQueue;
+    std::vector<ULIPCRect> _dirtyRects;
+
+    std::unique_ptr<std::thread> _updateThread;
+    tintptr _updateWaitObj;
+
+    std::mutex _updateQueueMutex;
+    std::condition_variable _updateQueueCondvar;
+    std::queue<std::unique_ptr<ulalaca::ULSurfaceTransaction>> _updateQueue;
 };
 
 #endif

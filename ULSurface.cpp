@@ -340,10 +340,12 @@ namespace ulalaca {
     }
 
     bool ULSurface::shouldDropFrame(const ULSurfaceTransaction &transaction) const {
+        constexpr static const int MAX_FRAME_DELAY = 2;
+
         int fdelta = std::abs(_frameId - _ackFrameId);
 
         return (
-            fdelta > 1
+            fdelta > MAX_FRAME_DELAY
         );
     }
 

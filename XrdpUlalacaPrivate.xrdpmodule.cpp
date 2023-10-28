@@ -158,6 +158,8 @@ int XrdpUlalacaPrivate::libModGetWaitObjs(tbus *readObjs, int *rcount, tbus *wri
     }
 
     readObjs[(*rcount)++] = _projectorClient->descriptor();
+    readObjs[(*rcount)++] = _updateWaitObj;
+
     writeObjs[(*wcount)++] = _projectorClient->descriptor();
 
     return 0;
@@ -165,6 +167,10 @@ int XrdpUlalacaPrivate::libModGetWaitObjs(tbus *readObjs, int *rcount, tbus *wri
 
 int XrdpUlalacaPrivate::libModCheckWaitObjs() {
     // TODO: move ipcConnection.read()/write() to here..?
+    if (_error == 1) {
+        return 1;
+    }
+
     return 0;
 }
 
@@ -182,7 +188,6 @@ int XrdpUlalacaPrivate::libModServerMonitorResize(int width, int height) {
 }
 
 int XrdpUlalacaPrivate::libModServerMonitorFullInvalidate(int width, int height) {
-    _fullInvalidate = true;
     return 0;
 }
 

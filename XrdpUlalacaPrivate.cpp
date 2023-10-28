@@ -35,11 +35,9 @@ XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
         _socket(),
         _projectorClient(),
 
-        _fullInvalidate(true),
-        _commitUpdateLock(),
-
-        _dirtyRects(std::make_shared<std::vector<ULIPCRect>>()),
-        _surface(std::make_unique<ulalaca::ULSurface>(mod))
+        _dirtyRects(),
+        _surface(std::make_unique<ulalaca::ULSurface>(mod)),
+        _updateWaitObj(g_create_wait_obj("ulalaca_screen_update"))
 {
 }
 
@@ -95,33 +93,31 @@ int XrdpUlalacaPrivate::decideCopyRectSize() const {
 }
 
 void XrdpUlalacaPrivate::addDirtyRect(ULIPCRect &rect) {
-    // TODO: REMOVE THIS
-    /*
-    for (auto &x: *_dirtyRects) {
-        if (isRectOverlaps(x, rect)) {
-            mergeRect(x, rect);
-            return;
-        }
-    }
-
-
-    _dirtyRects->push_back(rect);
-     */
-    _dirtyRects->push_back(rect);
+    _dirtyRects.push_back(rect);
 }
 
 void XrdpUlalacaPrivate::commitUpdate(const uint8_t *image, size_t size, int32_t width, int32_t height) {
-    std::shared_ptr<uint8_t> tmp((uint8_t *) g_malloc(size, 0), g_free);
-    memmove(tmp.get(), image, size);
-
-    auto dirtyRects = _dirtyRects;
-    _dirtyRects = std::make_shared<std::vector<ULIPCRect>>();
-
+    auto transaction = std::make_unique<ulalaca::ULSurfaceTransaction>();
+    // FIXME: TODO: timestamp should be retrieved from the sessionprojector.app
     auto now = std::chrono::steady_clock::now();
-    _updateQueue.emplace(ScreenUpdate {
-            std::chrono::duration<double>(now.time_since_epoch()).count(),
-            tmp, size, width, height, dirtyRects
-    });
+    double timestamp = std::chrono::duration<double>(now.time_since_epoch()).count();
+
+    transaction->addRects(_dirtyRects);
+    transaction->setTimestamp(timestamp);
+    transaction->setBitmap(
+            std::shared_ptr<uint8_t>((uint8_t *) g_malloc(size, 0), g_free),
+            size, width, height
+    );
+
+    memmove(transaction->bitmap().get(), image, size);
+    _dirtyRects.clear();
+
+    {
+        std::lock_guard<std::mutex> lockGuard(_updateQueueMutex);
+        _updateQueue.emplace(std::move(transaction));
+    }
+
+    _updateQueueCondvar.notify_one();
 }
 
 void XrdpUlalacaPrivate::ipcDisconnected() {
@@ -131,33 +127,38 @@ void XrdpUlalacaPrivate::ipcDisconnected() {
 
 void XrdpUlalacaPrivate::updateThreadLoop() {
     std::vector<ULIPCRect> skippedRects;
+    std::unique_ptr<ulalaca::ULSurfaceTransaction> transaction;
+
+    g_reset_wait_obj(_updateWaitObj);
 
     while (_isUpdateThreadRunning) {
-        while (_updateQueue.empty()) {
+        {
             using namespace std::chrono_literals;
-            // TODO: use condition_variable
-            std::this_thread::sleep_for(4ms);
+
+            std::unique_lock<std::mutex> lock(_updateQueueMutex);
+            if (!_updateQueueCondvar.wait_for(lock, 1s, [this] { return !_updateQueue.empty(); })) {
+                continue;
+            }
+
+            transaction = std::move(_updateQueue.front());
+            _updateQueue.pop();
+
+            if (transaction == nullptr) {
+                continue;
+            }
         }
 
-        if (!_isUpdateThreadRunning) {
-            break;
+        try {
+            _surface->beginUpdate();
+            if (!_surface->submitUpdate(*transaction)) {
+                // log("frame dropped");
+            }
+            _surface->endUpdate();
+        } catch (ulalaca::ULSurfaceException &e) {
+            LOG(LOG_LEVEL_ERROR, "failed to commit transaction: %s", e.what());
         }
 
-        _commitUpdateLock.lock();
-        auto update = std::move(_updateQueue.front());
-        _updateQueue.pop();
-        _commitUpdateLock.unlock();
-
-        ulalaca::ULSurfaceTransaction transaction;
-        transaction.addRects(*update.dirtyRects);
-        transaction.setBitmap(update.image, update.size, update.width, update.height);
-        transaction.setTimestamp(update.timestamp);
-
-        _surface->beginUpdate();
-        if (!_surface->submitUpdate(transaction)) {
-            // log("frame dropped");
-        }
-        _surface->endUpdate();
+        g_set_wait_obj(_updateWaitObj);
     }
 
 }
