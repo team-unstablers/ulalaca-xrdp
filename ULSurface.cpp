@@ -337,17 +337,10 @@ namespace ulalaca {
     }
 
     bool ULSurface::shouldDropFrame(const ULSurfaceTransaction &transaction) const {
-        constexpr static const double tdeltaThreshold = 1.0 / 20.0;
-
         int fdelta = std::abs(_frameId - _ackFrameId);
 
-        auto now = std::chrono::steady_clock::now();
-        double timestamp = std::chrono::duration<double>(now.time_since_epoch()).count();
-        double tdelta = timestamp - transaction.timestamp();
-
         return (
-            fdelta > 1 ||
-            tdelta > tdeltaThreshold
+            fdelta > 1
         );
     }
 
