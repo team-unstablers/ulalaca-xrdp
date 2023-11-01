@@ -38,7 +38,6 @@ libulalaca_la_SOURCES = \
   ULSurface.hpp \
   XrdpUlalacaPrivate.cpp \
   XrdpUlalacaPrivate.xrdpmodule.cpp \
-  XrdpUlalacaPrivate.debug.cpp \
   XrdpUlalacaPrivate.hpp \
   ulalaca.cpp \
   ulalaca.hpp
