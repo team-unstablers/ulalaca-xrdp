@@ -2,6 +2,9 @@
 // Created by Gyuhwan Park on 10/28/23.
 //
 
+#include <sstream>
+
+#include "ULCGTextRenderer.hpp"
 #include "ULSurface.hpp"
 
 namespace ulalaca {
@@ -207,6 +210,7 @@ namespace ulalaca {
 
         _updateThreadId(),
 
+        _debugStatisticsEnabled(true),
         __HACK__mstsc_workaround(true)
     {
 
@@ -231,6 +235,14 @@ namespace ulalaca {
 
     void ULSurface::setAckFrameId(int ackFrameId) {
         _ackFrameId = ackFrameId;
+    }
+
+    bool ULSurface::isDebugStatisticsEnabled() const {
+        return _debugStatisticsEnabled;
+    }
+
+    void ULSurface::setDebugStatisticsEnabled(bool enabled) {
+        _debugStatisticsEnabled = enabled;
     }
 
     bool ULSurface::canUpdate() const {
@@ -333,6 +345,10 @@ namespace ulalaca {
             0
         );
 
+        if (_debugStatisticsEnabled) {
+            drawDebugStatistics(_pendingRects.size(), transaction.timestamp());
+        }
+
 
         _pendingRects.clear();
 
@@ -347,6 +363,44 @@ namespace ulalaca {
         return (
             fdelta > MAX_FRAME_DELAY
         );
+    }
+
+    void ULSurface::drawDebugText(const std::string text, size_t fontSize, int x, int y) {
+        // TODO: add multi-line support to ULCGTextRenderer
+        // FIXME: x, y coordinates will be ignored since server_paint_rects() can only draw on (0, 0)
+
+        ULCGTextRenderer textRenderer(text, fontSize);
+        textRenderer.measure();
+        assert(textRenderer.render() == 0);
+
+        auto image = textRenderer.image();
+
+        auto rects = std::vector<ULIPCRect> {
+                ULIPCRect { (short) 0, (short) 0, (short) textRenderer.width(), (short) textRenderer.height() }
+        };
+
+        this->drawBitmap(
+                rects,
+                image.get(), textRenderer.size(),
+                textRenderer.width(), textRenderer.height(),
+                0
+        );
+    }
+
+    void ULSurface::drawDebugStatistics(size_t dirtyRectsSize, double timedelta) {
+        std::stringstream sstream;
+
+        sstream << "[DEBUG STATISTICS] \n";
+        sstream << _width << "x" << _height << "x" << 32; // FXIME: _bpp
+        sstream << " / \n";
+
+        sstream << "frame #" << _frameId << " / ack #" << _ackFrameId << " / \n";
+
+        sstream << "tΔ = " << timedelta << " / \n";
+
+        sstream << dirtyRectsSize << " rects invalidated";
+
+        drawDebugText(sstream.str(), 12, 0, 0);
     }
 
 

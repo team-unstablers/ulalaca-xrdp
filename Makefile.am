@@ -32,6 +32,8 @@ libulalaca_la_SOURCES = \
   ProjectorClient.hpp \
   ProjectorClient.cpp \
   KeycodeMap.cpp \
+  ULCGTextRenderer.cpp \
+  ULCGTextRenderer.hpp \
   ULSurface.cpp \
   ULSurface.hpp \
   XrdpUlalacaPrivate.cpp \
@@ -39,6 +41,14 @@ libulalaca_la_SOURCES = \
   XrdpUlalacaPrivate.hpp \
   ulalaca.cpp \
   ulalaca.hpp
+
+AM_LDFLAGS = \
+  -ObjC \
+  -all_load \
+  -framework CoreFoundation \
+  -framework Foundation \
+  -framework CoreGraphics \
+  -framework CoreText
 
 libulalaca_la_LIBADD = \
   $(top_builddir)/common/libcommon.la

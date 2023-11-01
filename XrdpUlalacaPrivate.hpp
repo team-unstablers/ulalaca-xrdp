@@ -128,6 +128,8 @@ private:
     std::mutex _updateQueueMutex;
     std::condition_variable _updateQueueCondvar;
     std::queue<std::unique_ptr<ulalaca::ULSurfaceTransaction>> _updateQueue;
+
+    bool _isDebugStatisticsEnabled;
 };
 
 #endif

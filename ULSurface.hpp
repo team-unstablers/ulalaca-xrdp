@@ -83,6 +83,9 @@ namespace ulalaca {
 
         void setAckFrameId(int ackFrameId);
 
+        bool isDebugStatisticsEnabled() const;
+        void setDebugStatisticsEnabled(bool enabled);
+
         [[nodiscard]]
         bool canUpdate() const;
 
@@ -119,8 +122,12 @@ namespace ulalaca {
         void setForegroundColor(int color);
         void fillRect(int x, int y, int width, int height);
 
+        void drawDebugText(const std::string text, size_t fontSize, int x, int y);
+
     protected:
         bool shouldDropFrame(const ULSurfaceTransaction &transaction) const;
+
+        void drawDebugStatistics(size_t dirtyRectsSize, double timedelta);
 
     private:
         XrdpUlalaca *_mod;
@@ -137,6 +144,7 @@ namespace ulalaca {
 
         std::thread::id _updateThreadId;
 
+        bool _debugStatisticsEnabled;
         bool __HACK__mstsc_workaround;
     };
 }
