@@ -2,11 +2,13 @@
 
 #include "XrdpUlalacaPrivate.hpp"
 
+#include "messages/broker.h"
+
 #include "ulalaca.hpp"
 #include "SessionBrokerClient.hpp"
 #include "ProjectorClient.hpp"
 
-#include "messages/broker.h"
+#include "ULSurface.hpp"
 
 int XrdpUlalacaPrivate::libModStart(int width, int height, int bpp) {
     // #517eb9
@@ -14,19 +16,17 @@ int XrdpUlalacaPrivate::libModStart(int width, int height, int bpp) {
 
     setSessionSize(width, height);
 
-    _mod->server_begin_update(_mod);
-    _mod->server_set_fgcolor(_mod, (int) BACKGROUND_COLOR);
-    _mod->server_fill_rect(_mod, 0, 0, width, height);
-    _mod->server_end_update(_mod);
+    _surface->beginUpdate();
+    _surface->setForegroundColor(BACKGROUND_COLOR);
+    _surface->fillRect(0, 0, width, height);
+    _surface->endUpdate();
 
-    /*
-    if (!isBPPSupported(bpp)) {
-        return 1;
+    if (bpp != 32) {
+        LOG(LOG_LEVEL_WARNING, "client bpp %d is not supported, but using it anyway", bpp);
     }
-     */
 
     _bpp = bpp;
-    // _this->updateBpp(bpp);
+
 
     return 0;
 }
@@ -158,6 +158,8 @@ int XrdpUlalacaPrivate::libModGetWaitObjs(tbus *readObjs, int *rcount, tbus *wri
     }
 
     readObjs[(*rcount)++] = _projectorClient->descriptor();
+    readObjs[(*rcount)++] = _updateWaitObj;
+
     writeObjs[(*wcount)++] = _projectorClient->descriptor();
 
     return 0;
@@ -165,13 +167,15 @@ int XrdpUlalacaPrivate::libModGetWaitObjs(tbus *readObjs, int *rcount, tbus *wri
 
 int XrdpUlalacaPrivate::libModCheckWaitObjs() {
     // TODO: move ipcConnection.read()/write() to here..?
+    if (_error == 1) {
+        return 1;
+    }
+
     return 0;
 }
 
 int XrdpUlalacaPrivate::libModFrameAck(int flags, int frameId) {
-    LOG(LOG_LEVEL_TRACE, "lib_mod_frame_ack() called: %d", frameId);
-    _ackFrameId = frameId;
-
+    _surface->setAckFrameId(frameId);
     return 0;
 }
 
@@ -184,7 +188,6 @@ int XrdpUlalacaPrivate::libModServerMonitorResize(int width, int height) {
 }
 
 int XrdpUlalacaPrivate::libModServerMonitorFullInvalidate(int width, int height) {
-    _fullInvalidate = true;
     return 0;
 }
 

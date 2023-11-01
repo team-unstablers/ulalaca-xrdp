@@ -34,6 +34,8 @@ libulalaca_la_SOURCES = \
   KeycodeMap.cpp \
   ULCGTextRenderer.cpp \
   ULCGTextRenderer.hpp \
+  ULSurface.cpp \
+  ULSurface.hpp \
   XrdpUlalacaPrivate.cpp \
   XrdpUlalacaPrivate.xrdpmodule.cpp \
   XrdpUlalacaPrivate.debug.cpp \
