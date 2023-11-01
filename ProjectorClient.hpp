@@ -17,7 +17,6 @@
 
 #include "ProjectionTarget.hpp"
 
-
 class ProjectorClient {
 public:
     explicit ProjectorClient(
@@ -34,7 +33,7 @@ public:
     void sendHello(const std::string &xrdpUlalacaVersion, const xrdp_client_info &clientInfo);
     void handleEvent(XrdpEvent &event);
     void setViewport(ULIPCRect rect);
-    
+
     void setOutputSuppression(bool isOutputSuppressed);
 
 private:
@@ -42,7 +41,7 @@ private:
 
     ProjectionTarget &_target;
     IPCConnection _ipcConnection;
-    
+
     bool _isTerminated;
     std::thread _projectorThread;
 };

@@ -50,7 +50,7 @@ SessionBrokerResponse SessionBrokerClient::requestSession(const std::string &use
 
         switch (responseHeader->messageType) {
             case TYPE_SESSION_REQUEST_RESOLVED: {
-                auto body = connection.read<ULIPCSessionRequestResolved>(
+                auto body = connection.readBlock<ULIPCSessionRequestResolved>(
                     sizeof(ULIPCSessionRequestResolved)
                 );
 
@@ -63,7 +63,7 @@ SessionBrokerResponse SessionBrokerClient::requestSession(const std::string &use
                 break;
 
             case TYPE_SESSION_REQUEST_REJECTED: {
-                auto body = connection.read<ULIPCSessionRequestRejected>(
+                auto body = connection.readBlock<ULIPCSessionRequestRejected>(
                         sizeof(ULIPCSessionRequestRejected)
                 );
 

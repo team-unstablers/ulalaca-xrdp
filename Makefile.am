@@ -27,6 +27,7 @@ libulalaca_la_SOURCES = \
   UlalacaMessages.hpp \
   IPCConnection.hpp \
   IPCConnection.cpp \
+  IPCConnection.workerloop.cpp \
   SessionBrokerClient.hpp \
   SessionBrokerClient.cpp \
   ProjectorClient.hpp \

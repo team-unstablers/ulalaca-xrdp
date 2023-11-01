@@ -5,11 +5,14 @@
 #ifndef ULALACA_IPCCONNECTION_HPP
 #define ULALACA_IPCCONNECTION_HPP
 
+#include <cassert>
+
 #include <memory>
 #include <thread>
 #include <queue>
 #include <future>
-#include <cassert>
+#include <mutex>
+#include <shared_mutex>
 
 #include "UnixSocket.hpp"
 
@@ -17,81 +20,79 @@
 
 #include "ulalaca.hpp"
 
+namespace ulalaca::ipc {
 
-class IPCConnection {
-public:
-    using MallocFreeDeleter = std::function<void(void *)>;
+    using IPCDataBlockPtr = std::shared_ptr<uint8_t>;
+    using IPCReadPromise = std::promise<IPCDataBlockPtr>;
 
-    explicit IPCConnection(std::shared_ptr<UnixSocket> socket);
-    explicit IPCConnection(const std::string &socketPath);
-    IPCConnection(IPCConnection &) = delete;
+    struct IPCWriteTask {
+        size_t size;
+        IPCDataBlockPtr data;
+    };
 
-    FD descriptor();
+    struct IPCReadTask {
+        size_t size;
+        std::shared_ptr<IPCReadPromise> promise;
 
-    /**
-     * @throws SystemCallException
-     */
-    void connect();
-    void disconnect();
+        size_t read;
+        IPCDataBlockPtr buffer;
+    };
 
-    bool isGood() const;
 
-    std::unique_ptr<ULIPCHeader, MallocFreeDeleter> nextHeader();
+    class IPCConnection {
+    public:
+        explicit IPCConnection(std::shared_ptr<UnixSocket> socket);
+        explicit IPCConnection(const std::string &socketPath);
 
-    template <typename T>
-    void writeMessage(uint16_t messageType, T message) {
-        auto header = ULIPCHeader {
-            (uint16_t) messageType,
-            _messageId,
-            0, // FIXME
-            0, // FIXME
-            sizeof(T)
-        };
+        IPCConnection(IPCConnection &) = delete;
 
-        write(&header, sizeof(header));
-        write(&message, sizeof(T));
-    }
+        FD descriptor();
 
-    template<typename T>
-    std::unique_ptr<T, MallocFreeDeleter> read(size_t size) {
-        assert(size != 0);
+        /** @throws SystemCallException */
+        void connect();
+        /** @throws SystemCallException */
+        void disconnect();
 
-        auto promise = std::make_shared<std::promise<std::unique_ptr<uint8_t>>>();
-        {
-            std::scoped_lock<std::mutex> scopedReadTasksLock(_readTasksLock);
-            _readTasks.emplace(size, promise);
-        }
-        auto source = promise->get_future().get();
-        auto destination = std::unique_ptr<T, MallocFreeDeleter>(
-            (T *) malloc(size),
-            free
-        );
+        bool isGood() const;
 
-        std::memmove(destination.get(), source.get(), size);
+        std::shared_ptr<ULIPCHeader> nextHeader();
 
-        return std::move(destination);
-    }
+        IPCDataBlockPtr readBlock(size_t size);
+        void writeBlock(const void *pointer, size_t size);
 
-    void write(const void *pointer, size_t size);
+        template <typename T>
+        std::shared_ptr<T> readBlock(size_t size);
 
-private:
-    void workerLoop();
+        template <typename T>
+        void writeMessage(const ULIPCHeader &header, const T &message);
 
-    std::atomic_uint64_t _messageId;
-    std::atomic_uint64_t _ackId;
+        /** @deprecated use writeMessage(const ULIPCHeader &header, const T &message) instead */
+        template <typename T>
+        void writeMessage(uint16_t messageType, const T &message);
 
-    std::shared_ptr<UnixSocket> _socket;
-    std::thread _workerThread;
-    bool _isWorkerTerminated;
+    private:
+        void workerLoop();
 
-    bool _isGood;
+        std::atomic_uint64_t _messageId;
+        std::atomic_uint64_t _ackId;
 
-    std::mutex _writeTasksLock;
-    std::mutex _readTasksLock;
+        std::shared_ptr<UnixSocket> _socket;
+        std::thread _workerThread;
+        bool _isWorkerTerminated;
 
-    std::queue<std::pair<size_t, std::unique_ptr<uint8_t, MallocFreeDeleter>>> _writeTasks;
-    std::queue<std::pair<size_t, std::shared_ptr<std::promise<std::unique_ptr<uint8_t>>> >> _readTasks;
-};
+        bool _isGood;
 
+        std::shared_mutex _writeTasksMutex;
+        std::queue<std::shared_ptr<IPCWriteTask>> _writeTasks;
+
+        std::shared_mutex _readTasksMutex;
+        std::queue<std::shared_ptr<IPCReadTask>>  _readTasks;
+    };
+}
+
+/** @deprecated use ulalaca::ipc::IPCConnection instead */
+using IPCConnection = ulalaca::ipc::IPCConnection;
+
+#include "IPCConnection.template.cpp"
 
 #endif //XRDP_IPCCONNECTION_HPP
