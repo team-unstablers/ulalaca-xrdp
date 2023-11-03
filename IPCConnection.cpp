@@ -66,7 +66,7 @@ namespace ulalaca::ipc {
     }
 
     IPCDataBlockPtr IPCConnection::readBlock(size_t size) {
-        if (size < 0) {
+        if (!size) {
             return nullptr;
         }
 
@@ -95,8 +95,9 @@ namespace ulalaca::ipc {
 
         auto writeTask = std::make_shared<IPCWriteTask>(IPCWriteTask {
                 size,
-                std::shared_ptr<uint8_t>((uint8_t *) malloc(size), free)
+                std::shared_ptr<uint8_t>(new uint8_t[size])
         });
+
 
         memcpy(writeTask->data.get(), pointer, size);
 

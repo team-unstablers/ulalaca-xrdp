@@ -54,59 +54,53 @@ namespace ulalaca::ipc {
         _isGood = true;
 
         while (!_isWorkerTerminated) {
-            const auto pollFd = _socket->poll(POLLIN | POLLOUT, -1);
-
+            const pollfd pollFd = _socket->poll(POLLIN | POLLOUT, -1);
             const bool canRead = (pollFd.revents & POLLIN) > 0;
             const bool canWrite = (pollFd.revents & POLLOUT) > 0;
 
-            if (canWrite && !isWriteQueueEmpty()) {
+            do {
+                if(!canWrite) break; /* do-while escape */
+                if(isWriteQueueEmpty()) break; /* do-while escape */
+
                 auto writeTask = nextWriteTask();
+                ssize_t retval = _socket->write(writeTask->data.get(), writeTask->size);
+                if (retval < 0) LOG(LOG_LEVEL_ERROR, "write() failed (errno=%d)", errno);
+                else popWriteTask();
+            } while(false);
 
-                if (_socket->write(writeTask->data.get(), writeTask->size) < 0) {
-                    LOG(LOG_LEVEL_ERROR, "write() failed (errno=%d)", errno);
-                } else {
-                    popWriteTask();
-                }
-            }
 
-            if (canRead && !isReadQueueEmpty()) {
+            do {
+                if (!canRead) break; /* do-while escape */
+                if (isReadQueueEmpty()) break; /* do-while escape */
+
                 auto readTask = nextReadTask();
-
                 auto &size = readTask->size;
                 auto &buffer = readTask->buffer;
                 auto &read = readTask->read;
                 auto &promise = readTask->promise;
 
-                if (buffer == nullptr) {
+                if (!buffer) {
                     read = 0;
                     buffer = std::shared_ptr<uint8_t>((uint8_t *) malloc(size), free);
                 }
 
-                size_t bytesToRead = std::min(
-                    (size_t) MAX_RW_SIZE,
-                    size - read
-                );
-
+                size_t bytesToRead = std::min( (size_t) MAX_RW_SIZE, size - read);
                 ssize_t retval = _socket->read(buffer.get() + read, bytesToRead);
 
                 if (retval <= 0) {
                     if (errno != EAGAIN) {
                         LOG(LOG_LEVEL_ERROR, "read() failed (errno=%d)", errno);
                         _isGood = false;
-                        break;
+                        break; /* do-while escape */
                     }
                 }
-
-
                 read += retval;
+                if (read < size) break; /* do-while escape */
 
-                if (read >= size) {
-                    popReadTask();
-                    promise->set_value(std::move(buffer));
-
-                    buffer = nullptr;
-                }
-            }
+                popReadTask();
+                promise->set_value(std::move(buffer));
+                buffer = nullptr;
+            } while(false);
 
             if (pollFd.revents & POLLHUP) {
                 LOG(LOG_LEVEL_INFO, "POLLHUP bit set");
@@ -123,7 +117,6 @@ namespace ulalaca::ipc {
                 break;
             }
         }
-
         _isGood = false;
     }
 }
