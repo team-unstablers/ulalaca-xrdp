@@ -66,7 +66,7 @@ namespace ulalaca::ipc {
     }
 
     IPCDataBlockPtr IPCConnection::readBlock(size_t size) {
-        if (size < 0) {
+        if (size < 0 || !_isGood) {
             return nullptr;
         }
 
@@ -92,6 +92,10 @@ namespace ulalaca::ipc {
     void IPCConnection::writeBlock(const void *pointer, size_t size) {
         assert(pointer != nullptr);
         assert(size > 0);
+
+        if (!_isGood) {
+            return;
+        }
 
         auto writeTask = std::make_shared<IPCWriteTask>(IPCWriteTask {
                 size,

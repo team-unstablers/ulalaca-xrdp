@@ -125,5 +125,24 @@ namespace ulalaca::ipc {
         }
 
         _isGood = false;
+
+        // flush unfinished tasks
+        {
+            std::unique_lock<std::shared_mutex> _lock(_writeTasksMutex);
+            while (!_writeTasks.empty()) {
+                _writeTasks.pop();
+            }
+        }
+
+        {
+            std::unique_lock<std::shared_mutex> _lock(_readTasksMutex);
+            while (!_readTasks.empty()) {
+                auto readTask = _readTasks.front();
+                readTask->promise->set_exception(std::make_exception_ptr(
+                    std::runtime_error("connection closed")
+                ));
+                _readTasks.pop();
+            }
+        }
     }
 }
