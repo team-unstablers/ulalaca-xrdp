@@ -81,7 +81,7 @@ namespace ulalaca::ipc {
 
                 if (!buffer) {
                     read = 0;
-                    buffer = std::shared_ptr<uint8_t>((uint8_t *) malloc(size), free);
+                    buffer = std::shared_ptr<uint8_t>(new uint8_t[size], free);
                 }
 
                 size_t bytesToRead = std::min( (size_t) MAX_RW_SIZE, size - read);
