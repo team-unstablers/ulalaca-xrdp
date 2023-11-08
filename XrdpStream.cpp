@@ -10,10 +10,16 @@
 
 static inline XrdpStream::Stream *createXrdpStreamInternal(size_t size) {
     XrdpStream::Stream *stream;
-    long test = (long)size;
+    int p = (int)size;
+
+#pragma clang diagnostic push /*임시로 경고 단계 조정*/
+#pragma clang diagnostic ignored "-Wsign-conversion"
+
     make_stream(stream);
-    init_stream(stream, test);
-    
+    init_stream(stream, p);
+
+#pragma clang diagnostic pop /*경고단계 복구*/
+
     return stream;
 }
 
