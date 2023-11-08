@@ -69,7 +69,6 @@ namespace ulalaca::ipc {
 
     private:
         FD _descriptor;
-        sockaddr_un _clientAddress;
     };
 
     class UnixSocket : public UnixSocketBase {

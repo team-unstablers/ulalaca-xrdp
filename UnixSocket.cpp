@@ -53,14 +53,12 @@ namespace ulalaca::ipc {
     }
 
     UnixSocketConnection::UnixSocketConnection(FD descriptor, sockaddr_un clientAddress) :
-            _descriptor(descriptor),
-            _clientAddress(clientAddress) {
+            _descriptor(descriptor){
     }
 
     FD UnixSocketConnection::descriptor() {
         return _descriptor;
     }
-
 
     UnixSocket::UnixSocket(const std::string path) :
             _path(path),

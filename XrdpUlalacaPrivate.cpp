@@ -35,8 +35,8 @@ XrdpUlalacaPrivate::XrdpUlalacaPrivate(XrdpUlalaca *mod):
         _socket(),
         _projectorClient(),
 
-        _dirtyRects(),
         _surface(std::make_unique<ulalaca::ULSurface>(mod)),
+        _dirtyRects(),
         _updateWaitObj(g_create_wait_obj("ulalaca_screen_update"))
 {
 }
