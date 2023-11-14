@@ -61,15 +61,15 @@ void ProjectorClient::sendHello(const std::string &xrdpUlalacaVersion, const xrd
         return;
     }
 
-    ULIPCProjectionHello message { 0 };
+    ULIPCProjectionHello message {};
 
     strncpy((char *) &message.xrdpUlalacaVersion, xrdpUlalacaVersion.c_str(), sizeof(message.xrdpUlalacaVersion));
     strncpy((char *) &message.clientAddress, clientInfo.client_ip, sizeof(message.clientAddress));
     strncpy((char *) &message.clientDescription, clientInfo.client_description, sizeof(message.clientDescription));
     strncpy((char *) &message.program, clientInfo.program, sizeof(message.program));
 
-    message.clientOSMajor = clientInfo.client_os_major;
-    message.clientOSMinor = clientInfo.client_os_minor;
+    message.clientOSMajor = (uint32_t)clientInfo.client_os_major;
+    message.clientOSMinor = (uint32_t)clientInfo.client_os_minor;
     message.codec = 0; // FIXME
     message.flags = 0;
 
@@ -77,6 +77,8 @@ void ProjectorClient::sendHello(const std::string &xrdpUlalacaVersion, const xrd
 }
 
 void ProjectorClient::handleEvent(XrdpEvent &event) {
+#pragma clang diagnostic push /*임시로 경고 단계 조정*/
+#pragma clang diagnostic ignored "-Wunused-variable"
     if (_isTerminated) {
         return;
     }
@@ -101,7 +103,8 @@ void ProjectorClient::handleEvent(XrdpEvent &event) {
         _ipcConnection.writeMessage(TYPE_EVENT_KEYBOARD, ULIPCKeyboardEvent {
             eventType, (uint32_t) cgKeycode, 0
         });
-    } else if (event.type == XrdpEvent::KEY_SYNCHRONIZE_LOCK) {
+    }
+    else if (event.type == XrdpEvent::KEY_SYNCHRONIZE_LOCK) {
         auto lockStatus = event.param1;
     }
     
@@ -178,7 +181,6 @@ void ProjectorClient::handleEvent(XrdpEvent &event) {
         uint16_t y1 = LOWORD(event.param1);
         uint16_t x2 = HIWORD(event.param2);
         uint16_t y2 = LOWORD(event.param2);
-        
         // TODO: redraw(rect)?
     }
     
@@ -189,6 +191,7 @@ void ProjectorClient::handleEvent(XrdpEvent &event) {
         auto data = (char *) event.param3;
         auto total_size = (int) event.param4;
     }
+#pragma clang diagnostic pop /*경고단계 복구*/
 }
 
 void ProjectorClient::setViewport(ULIPCRect rect) {
