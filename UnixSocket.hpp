@@ -74,6 +74,7 @@ namespace ulalaca::ipc {
     class UnixSocket : public UnixSocketBase {
     public:
         explicit UnixSocket(const std::string path);
+        virtual ~UnixSocket() = default;
 
         /**
          * bind(2)를 호출합니다.

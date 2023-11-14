@@ -73,13 +73,11 @@ namespace ulalaca::ipc {
     private:
         void workerLoop();
 
+        std::shared_ptr<UnixSocket> _socket;
         std::atomic_uint64_t _messageId;
         std::atomic_uint64_t _ackId;
-
-        std::shared_ptr<UnixSocket> _socket;
         std::thread _workerThread;
         bool _isWorkerTerminated;
-
         bool _isGood;
 
         std::shared_mutex _writeTasksMutex;

@@ -22,11 +22,10 @@ namespace ulalaca::ipc {
 
     IPCConnection::IPCConnection(std::shared_ptr<UnixSocket> socket) :
             _socket(std::move(socket)),
-            _isWorkerTerminated(false),
-
-            _workerThread(),
             _messageId(0),
             _ackId(0),
+            _workerThread(),
+            _isWorkerTerminated(false),
             _isGood(true) {
 
     }
@@ -84,9 +83,7 @@ namespace ulalaca::ipc {
         }
 
         auto future = readTask->promise->get_future();
-        auto retval = future.get();
-
-        return std::move(retval);
+        return future.get();
     }
 
     void IPCConnection::writeBlock(const void *pointer, size_t size) {
@@ -107,11 +104,13 @@ namespace ulalaca::ipc {
     }
 
     std::shared_ptr<ULIPCHeader> IPCConnection::nextHeader() {
-        auto header = std::move(this->readBlock<ULIPCHeader>(sizeof(ULIPCHeader)));
+        //auto header = std::move(this->readBlock<ULIPCHeader>(sizeof(ULIPCHeader)));
+        auto header = this->readBlock<ULIPCHeader>(sizeof(ULIPCHeader));
 
         _ackId = header->id;
         // TODO: check timestamp or std::max(_ackId, header->id)
 
-        return std::move(header);
+        //return std::move(header);
+        return header;
     }
 }

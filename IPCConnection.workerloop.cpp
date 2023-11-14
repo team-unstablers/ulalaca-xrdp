@@ -91,7 +91,7 @@ namespace ulalaca::ipc {
                     }
                 }
 
-                read += retval;
+                read += (size_t)retval;
                 if (read >= size) {
                     popReadTask();
                     promise->set_value(std::move(buffer));
