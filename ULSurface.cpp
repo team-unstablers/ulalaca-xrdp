@@ -112,7 +112,7 @@ namespace ulalaca {
 
         std::vector<ULIPCRect> blocks;
 
-        blocks.reserve((surfaceWidth * surfaceHeight) / (rectSize * rectSize));
+        blocks.reserve((size_t)((surfaceWidth * surfaceHeight) / (rectSize * rectSize)));
 
         /*
          * sorry, i'm not good at math. XDD
@@ -121,8 +121,8 @@ namespace ulalaca {
         int mapWidth  = std::ceil((float) surfaceWidth / (float) rectSize);
         int mapHeight = std::ceil((float) surfaceHeight / (float) rectSize);
         int mapSize = mapWidth * mapHeight;
-        std::unique_ptr<uint8_t> rectMap(new uint8_t[mapSize]);
-        memset(rectMap.get(), 0x00, mapSize);
+        std::unique_ptr<uint8_t> rectMap(new uint8_t[(unsigned long)mapSize]);
+        memset(rectMap.get(), 0x00, (size_t)mapSize);
 
         for (auto &dirtyRect : drects) {
             if (surfaceWidth <= dirtyRect.x ||
@@ -159,7 +159,7 @@ namespace ulalaca {
             }
         }
 
-        return std::move(blocks);
+        return blocks;
     }
 
     std::vector<ULIPCRect> ULSurface::cleanupRects(const std::vector<ULIPCRect> &rects) {
@@ -182,7 +182,7 @@ namespace ulalaca {
             }
         }
 
-        return std::move(result);
+        return result;
     }
 
     std::unique_ptr<short> ULSurface::allocateRectArray(const std::vector<ULIPCRect> &rects) {
@@ -191,7 +191,7 @@ namespace ulalaca {
         std::unique_ptr<short> result(new short[rects.size() * 4]);
         memcpy(result.get(), rects.data(), sizeof(ULIPCRect) * rects.size());
 
-        return std::move(result);
+        return result;
     }
 
     ULSurface::ULSurface(XrdpUlalaca *mod):
@@ -295,8 +295,8 @@ namespace ulalaca {
         const std::vector<ULIPCRect> &cleanedRects = cleanupRects(rects);
         const std::vector<ULIPCRect> &copyRects = createCopyRects(cleanedRects, _crectSize, _width, _height);
 
-        std::unique_ptr<short> drects = std::move(allocateRectArray(cleanedRects));
-        std::unique_ptr<short> crects = std::move(allocateRectArray(copyRects));
+        std::unique_ptr<short> drects = allocateRectArray(cleanedRects);
+        std::unique_ptr<short> crects = allocateRectArray(copyRects);
 
         _mod->server_paint_rects(
             _mod,
