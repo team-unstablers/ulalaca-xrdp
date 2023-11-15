@@ -43,7 +43,7 @@ public:
 
     explicit XrdpUlalacaPrivate(XrdpUlalaca *mod);
     XrdpUlalacaPrivate(XrdpUlalacaPrivate &) = delete;
-    ~XrdpUlalacaPrivate();
+    virtual ~XrdpUlalacaPrivate();
 
 public:
     /* lib_mod_* */
