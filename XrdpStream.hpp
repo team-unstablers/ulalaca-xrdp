@@ -51,9 +51,12 @@ public:
      */
     ptrdiff_t distance() const;
 
+    bool checkDistance(int n) const;
+
     const char *channelHeader() const;
 
-    void seekTo(ptrdiff_t offset);
+    void seekAbsolute(ptrdiff_t offset);
+    void seekRelative(ptrdiff_t offset);
 
     /**
      * equivalent to s_push_layer(s, channel_hdr, n)

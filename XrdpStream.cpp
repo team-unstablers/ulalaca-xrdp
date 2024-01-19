@@ -88,13 +88,25 @@ ptrdiff_t XrdpStream::distance() const {
     return _stream->end - _stream->p;
 }
 
-void XrdpStream::seekTo(ptrdiff_t offset) {
+bool XrdpStream::checkDistance(int n) const {
+    return (_stream->p + n) <= _stream->end;
+}
+
+void XrdpStream::seekAbsolute(ptrdiff_t offset) {
     if (offset < 0) {
         _stream->p = _stream->data;
     } else if (offset > size()) {
         _stream->p = _stream->end;
     } else {
         _stream->p = _stream->data + offset;
+    }
+}
+
+void XrdpStream::seekRelative(ptrdiff_t offset) {
+    if (offset < 0) {
+        _stream->p = std::max(_stream->data, _stream->p - offset);
+    } else {
+        _stream->p = std::min(_stream->end, _stream->p + offset);
     }
 }
 
