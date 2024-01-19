@@ -215,17 +215,17 @@ void ProjectorClient::mainLoop() {
         
         switch (header->messageType) {
             case TYPE_SCREEN_UPDATE_NOTIFY: {
-                auto notification = _ipcConnection.read<ULIPCScreenUpdateNotify>(header->length);
+                auto notification = _ipcConnection.readBlock<ULIPCScreenUpdateNotify>(header->length);
     
                 LOG(LOG_LEVEL_DEBUG, "mainLoop(): adding dirty rect");
                 _target.addDirtyRect(notification->rect);
                 continue;
             }
             case TYPE_SCREEN_UPDATE_COMMIT: {
-                auto commit = _ipcConnection.read<ULIPCScreenUpdateCommit>(header->length);
-                auto bitmap = _ipcConnection.read<uint8_t>(commit->bitmapLength);
+                auto commit = _ipcConnection.readBlock<ULIPCScreenUpdateCommit>(header->length);
+                auto bitmap = _ipcConnection.readBlock<uint8_t>(commit->bitmapLength);
     
-                LOG(LOG_LEVEL_DEBUG, "mainLoop(): commiting update");
+                LOG(LOG_LEVEL_DEBUG, "mainLoop(): commit update");
                 _target.commitUpdate(
                     bitmap.get(),
                     commit->bitmapLength,
@@ -236,7 +236,7 @@ void ProjectorClient::mainLoop() {
             }
             default: {
                 // ignore
-                _ipcConnection.read<uint8_t>(header->length);
+                _ipcConnection.readBlock<uint8_t>(header->length);
             }
         }
     }

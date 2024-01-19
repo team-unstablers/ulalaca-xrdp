@@ -151,7 +151,15 @@ void XrdpUlalacaPrivate::updateThreadLoop() {
         try {
             _surface->beginUpdate();
             if (!_surface->submitUpdate(*transaction)) {
-                // log("frame dropped");
+                LOG(LOG_LEVEL_INFO, "frame dropped");
+
+                // clear queue
+                {
+                    std::unique_lock<std::mutex> lock(_updateQueueMutex);
+                    while (!_updateQueue.empty()) {
+                        _updateQueue.pop();
+                    }
+                }
             }
             _surface->endUpdate();
         } catch (ulalaca::ULSurfaceException &e) {
