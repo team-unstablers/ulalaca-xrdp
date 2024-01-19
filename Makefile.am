@@ -12,6 +12,8 @@ module_LTLIBRARIES = \
   libulalaca.la
 
 libulalaca_la_SOURCES = \
+  Utility.hpp \
+  Utility.cpp \
   UnixSocket.cpp \
   UnixSocket.hpp \
   SocketStream.cpp \
@@ -24,6 +26,15 @@ libulalaca_la_SOURCES = \
   XrdpTransport.cpp \
   XrdpStream.hpp \
   XrdpStream.cpp \
+  XrdpStream.template.cpp \
+  channels/XrdpChannelBase.hpp \
+  channels/XrdpChannelBase.cpp \
+  channels/XrdpChannelEvent.hpp \
+  channels/XrdpChannelEvent.cpp \
+  channels/clipboard/ClipboardEntry.hpp \
+  channels/clipboard/ClipboardEntry.cpp \
+  channels/clipboard/ClipboardChannel.hpp \
+  channels/clipboard/ClipboardChannel.cpp \
   UlalacaMessages.hpp \
   IPCConnection.hpp \
   IPCConnection.cpp \
