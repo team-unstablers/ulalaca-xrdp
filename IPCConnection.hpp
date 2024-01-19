@@ -9,6 +9,7 @@
 #include <thread>
 #include <queue>
 #include <future>
+#include <cassert>
 
 #include "UnixSocket.hpp"
 

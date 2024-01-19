@@ -39,6 +39,8 @@ libulalaca_la_SOURCES = \
   ProjectorClient.hpp \
   ProjectorClient.cpp \
   KeycodeMap.cpp \
+  ULSurface.cpp \
+  ULSurface.hpp \
   XrdpUlalacaPrivate.cpp \
   XrdpUlalacaPrivate.xrdpmodule.cpp \
   XrdpUlalacaPrivate.hpp \
@@ -48,4 +50,4 @@ libulalaca_la_SOURCES = \
 libulalaca_la_LIBADD = \
   $(top_builddir)/common/libcommon.la
 
-SUBDIRS = tests
+# SUBDIRS = tests
