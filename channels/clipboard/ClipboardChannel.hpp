@@ -12,7 +12,10 @@
 #include "../XrdpChannelEvent.hpp"
 #include "../XrdpChannelBase.hpp"
 
+#include "ClipboardEntry.hpp"
+
 namespace ulalaca::channel {
+
     class ClipboardChannel: public XrdpChannelBase {
     public:
         static const std::string CHANNEL_NAME;
@@ -24,7 +27,30 @@ namespace ulalaca::channel {
 
         virtual void handleEvent(const XrdpChannelEvent &event) override;
 
-        virtual void handlePDU(XrdpStream &stream) override;
+    protected:
+        int handlePDU(XrdpStream &stream);
+
+        int handleFormatList(int msgFlags, XrdpStream &stream);
+        int findPreferredTextFormat(int msgFlags, XrdpStream &stream);
+
+        int handleFormatDataRequest(XrdpStream &stream);
+
+        int sendLocaleResponse();
+        /**
+         * sends ansi text to the client
+         */
+        int sendAnsiTextResponse(std::shared_ptr<ClipboardTextEntry> entry);
+        /**
+         * sends unicode text to the client
+         */
+        int sendUnicodeTextResponse(std::shared_ptr<ClipboardTextEntry> entry);
+        /**
+         * sends CB_RESPONSE_FAIL
+         */
+        int sendFailureResponse();
+
+
+
 
     protected:
         /**
@@ -43,7 +69,16 @@ namespace ulalaca::channel {
         void sendStreamToChannel(XrdpStream &stream);
 
     private:
+        std::shared_ptr<ClipboardEntry> _current;
+
         std::shared_ptr<XrdpStream> _dechunkedStream;
+
+        int _capabilityFlags;
+        int _activeDataRequests;
+
+        bool _isStartupComplete;
+        int _requestClipFormat;
+
     };
 }
 

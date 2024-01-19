@@ -132,11 +132,11 @@ namespace ulalaca::channel {
         }
     }
 
-    void ClipboardChannel::handlePDU(XrdpStream &stream) {
+    int ClipboardChannel::handlePDU(XrdpStream &stream) {
         // Ignore PDUs with no complete header
         if (_dechunkedStream->size() < 8) {
             LOG(LOG_LEVEL_ERROR, "Incomplete header");
-            return;
+            return 1;
         }
 
         int type = stream.readUInt16();
@@ -159,32 +159,201 @@ namespace ulalaca::channel {
              * normal functions to parse the PDU */
 
             // s->end = s->p + datalen;
-            stream.seekTo(dataLength);
+            stream.seekAbsolute(dataLength);
             stream.markEnd();
             stream.seekToBegin();
         }
 
         switch (type) {
             case CB_FORMAT_LIST:
-                handleFormatList(stream);
+                return handleFormatList(flags, stream);
                 break;
             case CB_FORMAT_LIST_RESPONSE:
                 // We don't need to do anything with this
                 break;
             case CB_FORMAT_DATA_REQUEST:
-                handleFormatDataRequest(stream);
+                return handleFormatDataRequest(stream);
                 break;
             case CB_FORMAT_DATA_RESPONSE:
                 if (flags == CB_RESPONSE_OK) {
-                    handleFormatDataResponse(stream);
+                    return handleFormatDataResponse(stream);
                 }
                 break;
             case CB_CLIP_CAPS:
-                handleCbCaps(stream);
+                return handleCbCaps(stream);
                 break;
             default:
                 break;
         }
+
+        return 0;
+    }
+
+    int ClipboardChannel::handleFormatList(int msgFlags, XrdpStream &stream) {
+
+        /* This is the last stage of the startup sequence in MS-RDPECLIP 1.3.2.1,
+         * although it does occur at other times */
+        _isStartupComplete = true;
+
+        XrdpStream outStream(64);
+        prepareHeader(outStream, CB_FORMAT_LIST_RESPONSE, CB_RESPONSE_OK);
+        outStream.markEnd();
+
+        sendStreamToChannel(stream);
+
+        /* Send a CB_DATA_REQUEST message to the cliprdr channel,
+         * if a suitable text format is available */
+        int format = findPreferredTextFormat(msgFlags, stream);
+
+        if (format != 0) {
+            /*
+            LOG_DEVEL(LOG_LEVEL_INFO,
+                      "Asking RDP client for clip data format=%s",
+                      cf2text(format, scratch, sizeof(scratch)));
+             */
+
+            _requestClipFormat = format;
+            _activeDataRequests++;
+
+            XrdpStream dataRequestStream(64);
+            prepareHeader(dataRequestStream, CB_FORMAT_DATA_REQUEST, 0);
+            dataRequestStream << (uint32_t) format;
+            dataRequestStream.markEnd();
+
+            sendStreamToChannel(dataRequestStream);
+        }
+
+        return 0;
+    }
+
+    int ClipboardChannel::findPreferredTextFormat(int msgFlags, XrdpStream &stream) {
+        bool seenCfUnicodeText = false;
+        bool seenCfText = false;
+
+        int formatId;
+
+        while (stream.checkDistance(4)) {
+            formatId = stream.readUInt32();
+
+            if ((_capabilityFlags & CB_USE_LONG_FORMAT_NAMES) == 0) {
+                /* Short format name */
+                int skip = std::min((int) stream.distance(), 32);
+                stream.seekRelative(skip);
+            } else {
+                /* Skip a wsz string */
+                int wc = 1;
+                while (stream.checkDistance(2) && wc != 0) {
+                    wc = stream.readUInt16();
+                }
+            }
+
+            /*
+            LOG_DEVEL(LOG_LEVEL_INFO, "VNC: Format id %s available"
+                                      " from RDP client",
+                      cf2text(format_id, scratch, sizeof(scratch)));
+             */
+
+            switch (formatId) {
+                case CF_UNICODETEXT:
+                    seenCfUnicodeText = true;
+                    break;
+                case CF_TEXT:
+                    seenCfText = true;
+                    break;
+            }
+        }
+
+        if (seenCfUnicodeText) {
+            return CF_UNICODETEXT;
+        } else if (seenCfText) {
+            return CF_TEXT;
+        } else {
+            return 0;
+        }
+    }
+
+    int ClipboardChannel::handleFormatDataRequest(XrdpStream &stream) {
+        int format = 0;
+
+        if (stream.checkDistance(4)) {
+            format = stream.readUInt32();
+        }
+
+        if (format == CF_LOCALE) {
+            return sendLocaleResponse();
+        }
+
+        if (_current == nullptr) {
+            LOG(LOG_LEVEL_ERROR, "No clipboard data available");
+            return sendFailureResponse();
+        }
+
+        auto currentTextEntry = std::dynamic_pointer_cast<ClipboardTextEntry>(_current);
+
+        if (currentTextEntry == nullptr) {
+            LOG(LOG_LEVEL_ERROR, "Clipboard data is not text");
+            return sendFailureResponse();
+        }
+
+        if (format == CF_UNICODETEXT) {
+            return sendUnicodeTextResponse(currentTextEntry);
+        } else if (format == CF_TEXT) {
+            return sendAnsiTextResponse(currentTextEntry);
+        } else {
+            LOG(LOG_LEVEL_ERROR, "Unsupported clipboard format %d", format);
+            return sendFailureResponse();
+        }
+    }
+
+    int ClipboardChannel::sendLocaleResponse() {
+        XrdpStream outStream(64);
+        prepareHeader(outStream, CB_FORMAT_DATA_RESPONSE, CB_RESPONSE_OK);
+
+        outStream.write((uint32_t) 0x0409); // en-US locale
+        outStream.markEnd();
+
+        sendStreamToChannel(outStream);
+
+        return 0;
+    }
+
+    int ClipboardChannel::sendAnsiTextResponse(std::shared_ptr<ClipboardTextEntry> entry) {
+        XrdpStream outStream(64 + entry->ansi().size() + 1);
+        prepareHeader(outStream, CB_FORMAT_DATA_RESPONSE, CB_RESPONSE_OK);
+
+        for (char c: entry->ansi()) {
+            outStream.write((uint8_t) c);
+        }
+
+        outStream.seekRelative(1);
+        outStream.markEnd();
+
+        sendStreamToChannel(outStream);
+    }
+
+    int ClipboardChannel::sendUnicodeTextResponse(std::shared_ptr<ClipboardTextEntry> entry) {
+        // ???: why adding 2? (see vnc_clip.c:438)
+        XrdpStream outStream(64 + entry->unicode().size() + 2);
+        prepareHeader(outStream, CB_FORMAT_DATA_RESPONSE, CB_RESPONSE_OK);
+
+        for (char c: entry->unicode()) {
+            outStream.write((uint8_t) c);
+        }
+
+        outStream.seekRelative(2);
+        outStream.markEnd();
+
+        sendStreamToChannel(outStream);
+    }
+
+    int ClipboardChannel::sendFailureResponse() {
+        XrdpStream outStream(64);
+        prepareHeader(outStream, CB_FORMAT_DATA_RESPONSE, CB_RESPONSE_FAIL);
+        outStream.markEnd();
+
+        sendStreamToChannel(outStream);
+
+        return 0;
     }
 
     void ClipboardChannel::prepareHeader(XrdpStream &stream, int msgType, int msgFlags) {
@@ -250,4 +419,6 @@ namespace ulalaca::channel {
             pos += pduLength;
         }
     }
+
+
 }

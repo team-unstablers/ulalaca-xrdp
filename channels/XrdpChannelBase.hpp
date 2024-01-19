@@ -29,8 +29,6 @@ namespace ulalaca::channel {
         virtual bool canHandle(const XrdpChannelEvent &event) const;
         virtual void handleEvent(const XrdpChannelEvent &event) = 0;
 
-        virtual void handlePDU(XrdpStream &stream) = 0;
-
     protected:
         XrdpUlalaca *mod() const;
 
